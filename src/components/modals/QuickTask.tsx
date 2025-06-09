@@ -8,13 +8,18 @@ import useKanbanStore, {
   FormValues,
   QuickTaskType,
   Task,
-} from "../../store/useKanbanStore";
+} from "../kanban/useKanbanStore";
 
 import dayjs from "dayjs";
 import { statusOptions } from "../../utils/options";
 
 const QuickTask: React.FC<{
-  setIsModalOpen: React.Dispatch<React.SetStateAction<{ task: boolean }>>;
+  setIsModalOpen: React.Dispatch<
+    React.SetStateAction<{
+      task?: boolean;
+      issue?: boolean;
+    }>
+  >;
 }> = ({ setIsModalOpen }) => {
   const [form] = Form.useForm<FormValues>();
   const addQuickTask = useKanbanStore((state) => state.addQuickTask);
@@ -81,10 +86,7 @@ const QuickTask: React.FC<{
                 },
               ]}
             >
-              <TextArea
-                rows={4}
-                placeholder="You dont have to enter a description just click elaborate with AI"
-              />
+              <TextArea rows={4} placeholder="Describe your quicktask" />
             </Form.Item>
             <Form.Item
               name="status"

@@ -1,6 +1,6 @@
 import { ArrowUp, Clock, Pencil, Trash } from "lucide-react";
 import { Button, Form, FormInstance, Popconfirm, Select } from "antd";
-import { FormValues, Task } from "../store/useKanbanStore";
+import { FormValues, Task } from "./kanban/useKanbanStore";
 import { priorityOptions } from "../utils/options";
 import useUserStore from "../store/useUserStore";
 import TextArea from "antd/es/input/TextArea";

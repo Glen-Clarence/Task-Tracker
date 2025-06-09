@@ -2,9 +2,9 @@
 import { create } from "zustand";
 import { message } from "antd";
 import dayjs from "dayjs";
-import apiClient from "../api/_setup";
+import apiClient from "../../api/_setup";
 import { AxiosResponse } from "axios";
-import { UserProfile } from "../context/useUserContext";
+import { UserProfile } from "../../context/useUserContext";
 export interface Task {
   id?: string;
   title?: string;
@@ -58,6 +58,7 @@ export interface Stats {
 interface KanbanState {
   // State
   tasks: Task[];
+  allTasks: Task[];
   loading: boolean;
   editingTask: string | null;
   quickTasks: QuickTaskType[];
@@ -100,6 +101,7 @@ export type ColumnType =
 const useKanbanStore = create<KanbanState>((set, get) => ({
   // Initial state
   tasks: [],
+  allTasks: [],
   loading: false,
   editingTask: null,
   quickTasks: [],

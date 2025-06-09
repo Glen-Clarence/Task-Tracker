@@ -22,7 +22,7 @@ import {
 
 import { AxiosResponse } from "axios";
 import apiClient from "../../api/_setup";
-import useKanbanStore, { FormValues, Task } from "../../store/useKanbanStore";
+import useKanbanStore, { FormValues, Task } from "../kanban/useKanbanStore";
 import { priorityOptions, statusOptions } from "../../utils/options";
 import { elaborateTaskWithGroq } from "../../utils/groqTaskElaborator";
 

@@ -2,7 +2,7 @@ import * as React from "react";
 import { motion, PanInfo } from "framer-motion";
 import { cn } from "../../utils/utils";
 import TrelloCard from "../Card";
-import { Task } from "../../store/useKanbanStore";
+import { Task } from "../kanban/useKanbanStore";
 
 interface TestimonialCarouselProps
   extends React.HTMLAttributes<HTMLDivElement> {

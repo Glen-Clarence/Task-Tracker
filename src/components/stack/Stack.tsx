@@ -2,7 +2,7 @@ import { Avatar, Select, Button } from "antd";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 // import TrelloCard from "../Card";
-import useKanbanStore, { Task } from "../../store/useKanbanStore";
+import useKanbanStore, { Task } from "../kanban/useKanbanStore";
 import { priorityOptions, statusOptions } from "../../utils/options";
 import { Grid, List, RefreshCw } from "lucide-react";
 import dayjs from "dayjs";
@@ -15,8 +15,8 @@ const CARD_OFFSET = 10;
 const SCALE_FACTOR = 0.06;
 
 export const CardStack = () => {
-  const tasks = useKanbanStore((state) => state.tasks);
-  const fetchTasks = useKanbanStore((state) => state.fetchTasks);
+  const allTasks = useKanbanStore((state) => state.allTasks);
+  const fetchAllTasks = useKanbanStore((state) => state.fetchAllTasks);
   const moveTaskStackToEnd = useKanbanStore(
     (state) => state.moveTaskStackToEnd
   );
@@ -28,12 +28,12 @@ export const CardStack = () => {
   const [gridView, setGridView] = useState<boolean>(false);
 
   useEffect(() => {
-    fetchTasks();
+    fetchAllTasks();
   }, []);
 
   // Group tasks by user if not "All", otherwise use the flat list
   const groupedTasks: Record<string, Task[]> = {};
-  tasks.forEach((task) => {
+  allTasks.forEach((task) => {
     const name = task.user?.name || "Unknown";
     if (!groupedTasks[name]) {
       groupedTasks[name] = [];
@@ -214,7 +214,7 @@ export const CardStack = () => {
       </div>
       {/* Render Task Stacks */}
       {selectedUser === "All"
-        ? renderTaskStack(tasks) // Render all tasks as one stack
+        ? renderTaskStack(allTasks) // Render all tasks as one stack
         : selectedUser in groupedTasks &&
           renderTaskStack(groupedTasks[selectedUser])}
       {/* Grouped by user */}

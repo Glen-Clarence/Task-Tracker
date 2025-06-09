@@ -1,6 +1,7 @@
 import { createContext, useEffect } from "react";
-import apiClient from "../api/_setup";
 import useUserStore from "../store/useUserStore";
+import { useQuery } from "@tanstack/react-query";
+import { usersApi } from "@/api/users.api";
 
 export interface UserProfile {
   id: string;
@@ -25,29 +26,24 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const { profile, loading, error, setProfile, setLoading, setError, token } =
-    useUserStore();
+  const { profile, loading, error, setProfile, token } = useUserStore();
 
-  const fetchProfile = async () => {
-    try {
-      const response = await apiClient.get("users/profile");
-      setProfile(response.data as UserProfile);
-    } catch (err) {
-      setError("Failed to fetch profile");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: userProfile, isLoading } = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => usersApi.getProfile(),
+    refetchOnWindowFocus: "always",
+    enabled: !!token,
+  });
 
   useEffect(() => {
-    if (token) {
-      fetchProfile();
+    if (!isLoading && userProfile) {
+      setProfile(userProfile as UserProfile);
     }
-  }, []);
+  }, [isLoading, userProfile, setProfile]);
+
+  const contextValue = { profile, loading, error };
 
   return (
-    <UserContext.Provider value={{ profile, loading, error }}>
-      {children}
-    </UserContext.Provider>
+    <UserContext.Provider value={contextValue}>{children}</UserContext.Provider>
   );
 };

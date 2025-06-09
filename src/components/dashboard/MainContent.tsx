@@ -7,7 +7,7 @@ import type { TabsProps } from "antd";
 import { Kanban } from "../kanban/Kanban";
 import AdminDashboard from "../admin/AdminDashboard";
 import { TestimonialCarousel } from "./slide";
-import useKanbanStore, { Task } from "../../store/useKanbanStore";
+import useKanbanStore, { Task } from "../kanban/useKanbanStore";
 import Streak from "../streak/Streak";
 
 const MainContent = () => {
@@ -22,33 +22,17 @@ const MainContent = () => {
       disabled: profile?.role === "USER",
     },
     {
-      key: "2",
-      label: "Your tasks",
-      children: (
-        <>
-          <Kanban />
-        </>
-      ),
-      disabled: profile?.role === "ADMIN",
-    },
-    {
       key: "3",
       label: "Admin Dashboard",
       children: <AdminDashboard />,
       disabled: profile?.role === "USER",
     },
-    {
-      key: "4",
-      label: "Slide",
-      children: <TestimonialCarousel testimonials={tasks as Task[]} />,
-      disabled: profile?.role === "USER",
-    },
-    {
-      key: "5",
-      label: "Streak",
-      children: <Streak completedDates={[]} currentStreak={0} />,
-      disabled: profile?.role === "USER",
-    },
+    // {
+    //   key: "4",
+    //   label: "Slide",
+    //   children: <TestimonialCarousel testimonials={tasks as Task[]} />,
+    //   disabled: profile?.role === "USER",
+    // },
   ];
 
   return (

@@ -2,6 +2,10 @@ import { ConfigProvider, Tabs } from "antd";
 import type { TabsProps } from "antd";
 
 import AddTask from "./AddTask";
+import QuickTask from "./QuickTask";
+import Canvas from "./Canvas";
+import AddIssue from "./AddIssue";
+import AddRepo from "./AddRepo";
 
 const QuickAdd: React.FC<{
   setIsModalOpen: React.Dispatch<
@@ -19,18 +23,24 @@ const QuickAdd: React.FC<{
     },
     {
       key: "2",
-      label: "Issue",
-      children: "Content of Tab Pane 2",
+      label: "Quick Task",
+      children: <QuickTask setIsModalOpen={setIsModalOpen} />,
     },
     {
       key: "3",
-      label: "Quick Task",
-      children: "Content of Tab Pane 3",
+      label: "Issue",
+      children: <AddIssue />,
     },
     {
       key: "4",
+      label: "Repository",
+      children: <AddRepo />,
+    },
+    {
+      key: "5",
       label: "Note",
-      children: "Content of Tab Pane 3",
+      children: <Canvas />,
+      disabled: true,
     },
   ];
 

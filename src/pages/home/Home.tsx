@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import useKanbanStore from "../../store/useKanbanStore";
+import useKanbanStore from "../../components/kanban/useKanbanStore";
 import useUserStore from "../../store/useUserStore";
 import StreakWeek from "../../components/streak/StreakWeek";
 
@@ -14,8 +14,12 @@ import QuickTask from "../../components/modals/QuickTask";
 
 const Home = () => {
   const { profile } = useUserStore();
-  const [isModalOpen, setIsModalOpen] = useState({
+  const [isModalOpen, setIsModalOpen] = useState<{
+    task?: boolean;
+    issue?: boolean;
+  }>({
     task: false,
+    issue: false,
   });
   const tasks = useKanbanStore((state) => state.tasks);
   const fetchTasks = useKanbanStore((state) => state.fetchTasks);
@@ -51,7 +55,7 @@ const Home = () => {
 
   return (
     <div>
-      <div className="container mx-auto grid grid-cols-3 text-white pt-0 border-b pb-4 border-[#999]">
+      <div className="container 2xl:max-w-[100%] grid grid-cols-3 text-white border-b pb-4 border-[#999]">
         <h1 className="text-4xl font-normal">
           Hy, {profile?.name.split(" ")[0]}
         </h1>
@@ -63,7 +67,7 @@ const Home = () => {
         </p>
       </div>
 
-      <div className="container mx-auto grid grid-cols-3 text-white pb-4">
+      <div className="container 2xl:max-w-[100%] pl-4  py-4 grid grid-cols-3 text-white pb-4">
         <div className=" text-white p-6 pt-2 pl-0 rounded-3xl">
           <div className="flex justify-between">
             <span>
