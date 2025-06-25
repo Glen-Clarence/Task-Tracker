@@ -17,6 +17,7 @@ import {
   GitBranchPlus,
   ListCheck,
   PlusIcon,
+  Tag,
   WandSparkles,
 } from "lucide-react";
 
@@ -27,6 +28,8 @@ import { priorityOptions, statusOptions } from "../../utils/options";
 import { elaborateTaskWithGroq } from "../../utils/groqTaskElaborator";
 
 import dayjs from "dayjs";
+import { useQuery } from "@tanstack/react-query";
+import { tagsApi } from "@/api/tags.api";
 
 const AddTask: React.FC<{
   setIsModalOpen: React.Dispatch<
@@ -40,11 +43,22 @@ const AddTask: React.FC<{
   const addTask = useKanbanStore((state) => state.addTask);
   const [loadingAI, setLoadingAI] = useState(false);
 
+  const { data: tags, isLoading: isLoadingTags } = useQuery({
+    queryKey: ["tags"],
+    queryFn: async () => {
+      const tags = await tagsApi.getAll();
+      return tags.map((tag) => ({
+        value: tag.id,
+        label: tag.name,
+      }));
+    },
+  });
+
   const handleSubmit = async (values: Task) => {
     const newTodo: Task = {
       ...values,
-      status: form.getFieldValue("status"),
-      priority: form.getFieldValue("priority"),
+      status: form.getFieldValue("status") || "NOT_STARTED",
+      priority: form.getFieldValue("priority") || "LOW",
       isForAWeek: false,
     };
     try {
@@ -192,6 +206,29 @@ const AddTask: React.FC<{
             style={{
               maxWidth: "100px",
             }}
+          />
+        </Form.Item>
+        <Form.Item
+          name="tags"
+          // label="Priority"
+          rules={[
+            {
+              required: true,
+              message: "Please select a tag",
+            },
+          ]}
+        >
+          <Select
+            placeholder="Tag"
+            options={tags}
+            size="small"
+            style={{
+              maxWidth: "200px",
+              minWidth: "150px",
+            }}
+            loading={isLoadingTags}
+            allowClear
+            suffixIcon={<Tag size={12} />}
           />
         </Form.Item>
         <Dropdown menu={{ items: menuItems }} trigger={["click"]}>

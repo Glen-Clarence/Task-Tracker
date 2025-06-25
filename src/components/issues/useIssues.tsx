@@ -2,21 +2,28 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 
 import { Issue, issuesApi } from "../../api/issues.api";
 import { useQueryCache } from "../../hooks/useQueryClient";
+import { useParams } from "react-router";
+import { projectsApi } from "@/api/projects.api";
 
 export const useIssues = () => {
   const { updateCache } = useQueryCache<Issue>({
     queryKey: ["issues"],
     getId: (issue) => issue.id,
   });
-
+  const { id } = useParams();
   // Query for fetching issues
   const {
     data: issues = [],
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["issues"],
-    queryFn: issuesApi.getAll,
+    queryKey: ["issues", id],
+    queryFn: ({ queryKey }) => issuesApi.getAll(queryKey[1] as string),
+  });
+
+  const { data: project } = useQuery({
+    queryKey: ["project", id],
+    queryFn: () => projectsApi.getRepo(id as string),
   });
 
   // Create mutation
@@ -42,6 +49,8 @@ export const useIssues = () => {
     issues,
     isLoading,
     error,
+
+    project,
 
     // Actions
     createIssue: createMutation.mutate,

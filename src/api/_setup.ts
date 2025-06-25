@@ -109,9 +109,16 @@ class APIClient {
   async get<T>(
     url: string,
     params: object = {},
-    headers: object = {}
+    headers: object = {},
+    options: { responseType?: "blob" | "json" } = { responseType: "json" }
   ): Promise<AxiosResponse<T>> {
-    return this.client.get<T>(url, { params, headers });
+    const { responseType, ...axiosOptions } = options;
+    return this.client.get<T>(url, {
+      params,
+      headers,
+      responseType,
+      ...axiosOptions,
+    });
   }
 
   async post<T, D = unknown>(

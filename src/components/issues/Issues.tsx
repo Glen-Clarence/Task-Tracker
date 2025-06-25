@@ -20,7 +20,9 @@ const Issues = () => {
 
   const [activeFilter, setActiveFilter] = useState<string>(filterbtns[0].id);
 
-  const { issues, isLoading } = useIssues();
+  const { issues, isLoading, project } = useIssues();
+
+  console.log(project);
 
   const filters = {
     priority: {

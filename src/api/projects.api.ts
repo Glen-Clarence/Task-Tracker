@@ -15,4 +15,8 @@ export const projectsApi = {
     );
     return data;
   },
+  getRepo: async (id: string): Promise<Project> => {
+    const { data } = await apiClient.get<Project>(`/repositories/${id}`);
+    return data;
+  },
 };

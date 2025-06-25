@@ -180,13 +180,15 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
       <div className="h-[60vh] mt-4">
-        <SearchFilterInput
-          filters={filters}
-          filterOptions={filterOptions}
-          onSearch={(value, filters) => {
-            setSearch(filters);
-          }}
-        />
+        <div>
+          <SearchFilterInput
+            filters={filters}
+            filterOptions={filterOptions}
+            onSearch={(value, filters) => {
+              setSearch(filters);
+            }}
+          />
+        </div>
         <h2 className="text-xl mb-2">All Tasks</h2>
         <div className="flex flex-col gap-4 text-white text-[16px]">
           <div className="flex gap-4">

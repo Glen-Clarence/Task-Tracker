@@ -1,12 +1,14 @@
 import { Spin, Button } from "antd";
 import useProjects from "./useProjects";
+import { useNavigate } from "react-router";
 
 const Projects: React.FC = () => {
   const { projects, isLoading } = useProjects();
+  const navigate = useNavigate();
   return (
     <div className="px-4 text-white">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl text-white mt-4">Projects</h2>
+        <h2 className="text-2xl text-white mt-4">Repositories</h2>
         <Button className="mt-4">Create Project</Button>
       </div>
       <Spin spinning={isLoading}>
@@ -14,6 +16,7 @@ const Projects: React.FC = () => {
           {projects.map((project) => (
             <div
               key={project.id}
+              onClick={() => navigate(`/repositories/${project.id}`)}
               className="flex items-center gap-2 relative cursor-pointer group transition-transform duration-200 hover:scale-105"
             >
               <svg

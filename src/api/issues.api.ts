@@ -22,8 +22,13 @@ export interface Issue {
 }
 
 export const issuesApi = {
-  getAll: async (): Promise<Issue[]> => {
-    const { data } = await apiClient.get<Issue[]>("/issues");
+  getAll: async (id?: string): Promise<Issue[]> => {
+    const params = id
+      ? {
+          repositoryId: id,
+        }
+      : {};
+    const { data } = await apiClient.get<Issue[]>(`/issues`, params);
     return data;
   },
   create: async (

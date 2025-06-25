@@ -1,6 +1,7 @@
 import React, { useState, DragEvent } from "react";
 import { PlusIcon, WandSparkles } from "lucide-react";
 import fire from "../../assets/fire.lottie";
+import { saveAs } from "file-saver";
 
 import { motion } from "framer-motion";
 
@@ -16,12 +17,16 @@ import {
   DatePicker,
   theme,
   ConfigProvider,
+  message,
 } from "antd";
+import { Button as ShadButton } from "../ui/button";
 import { priorityOptions } from "../../utils/options";
 import TextArea from "antd/es/input/TextArea";
 import dayjs from "dayjs";
 import { elaborateTaskWithGroq } from "../../utils/groqTaskElaborator";
 import { DotLottie, DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { useMutation } from "@tanstack/react-query";
+import { taskApi } from "@/api/task.api";
 
 type FilterOption = {
   id: string;
@@ -46,11 +51,27 @@ export const Kanban = () => {
 
   const [activeFilter, setActiveFilter] = useState<string>(filterOptions[0].id);
 
+  const { mutate: downloadTasks } = useMutation({
+    mutationFn: taskApi.download,
+    onSuccess: (data) => {
+      console.log(data);
+      saveAs(data, "tasks.xlsx");
+    },
+    onError: () => {
+      message.error("Error downloading tasks");
+    },
+  });
+
   return (
     <div className="container 2xl:max-w-[100%] mx-auto">
-      <h1 className="text-2xl text-white border-b border-[#ccc] pb-4">
-        My Tasks
-      </h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl text-white border-b border-[#ccc] pb-4">
+          My Tasks
+        </h1>
+        <ShadButton onClick={() => downloadTasks()}>
+          Download Your Tasks
+        </ShadButton>
+      </div>
       <div className="flex gap-2 mt-2">
         <ConfigProvider
           theme={{

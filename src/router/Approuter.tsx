@@ -89,7 +89,7 @@ export const Approuter = () => {
               element: <Projects />,
             },
             {
-              path: "/repositories/:projectId",
+              path: "/repositories/:id",
               element: <Issues />,
             },
           ],

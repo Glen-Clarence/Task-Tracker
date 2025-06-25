@@ -12,6 +12,7 @@ import {
   SquarePen,
   ShieldUser,
   LogOut,
+  BookDashed,
 } from "lucide-react";
 import clsx from "clsx";
 import { useState } from "react";
@@ -23,7 +24,7 @@ import { Button } from "../ui/button";
 const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const profile = useUserStore((state) => state.profile);
   const logout = useUserStore((state) => state.logout);
 
@@ -37,6 +38,7 @@ const Sidebar = () => {
 
   const navItems = [
     { key: "/home", icon: Home, label: "Home" },
+    { key: "/dashboard", icon: BookDashed, label: "Dashboard" },
     { key: "/tasks", icon: ListTodo, label: "Tasks" },
     { key: "/issues", icon: AlertCircle, label: "Issues" },
     { key: "/repositories", icon: Folder, label: "Repositories" },
@@ -129,6 +131,7 @@ const Sidebar = () => {
         open={isModalOpen.task}
         onCancel={() => setIsModalOpen({ ...isModalOpen, task: false })}
         footer={null}
+        width={800}
       >
         <QuickAdd setIsModalOpen={setIsModalOpen} />
       </Modal>
