@@ -19,6 +19,12 @@ export interface Task {
   userId?: string;
   column?: string;
   user?: UserProfile;
+  isRecurring?: boolean;
+  tagIDs?: string[];
+  tags?: {
+    id: string;
+    name: string;
+  }[];
 }
 
 export interface QuickTaskType {
@@ -137,6 +143,7 @@ const useKanbanStore = create<KanbanState>((set, get) => ({
         updatedAt: task.updatedAt,
         userId: task.userId,
         user: task.user,
+        tags: task.tags,
       }));
 
       set({ tasks: mappedCards });

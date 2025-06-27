@@ -75,6 +75,7 @@ const Folder: React.FC<FolderProps> = ({
   };
 
   const handlePaperMouseLeave = (
+    // @ts-expect-error - TODO: fix this
     e: React.MouseEvent<HTMLDivElement, MouseEvent>,
     index: number
   ) => {

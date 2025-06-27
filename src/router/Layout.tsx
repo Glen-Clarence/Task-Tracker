@@ -1,6 +1,5 @@
 import { Outlet } from "react-router";
 import Sidebar from "../components/sidebar/Sidebar";
-import bg from "../assets/bg.webp";
 
 const Layout = () => {
   return (

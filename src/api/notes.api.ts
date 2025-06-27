@@ -7,7 +7,8 @@ export interface Note {
   description?: string;
   createdAt: string;
   updatedAt: string;
-  content?: ExcalidrawElement[];
+  canvas?: ExcalidrawElement[];
+  content?: string;
 }
 
 export const notesApi = {
@@ -34,6 +35,7 @@ export const notesApi = {
       id,
       name: updates.name,
       content: updates.content,
+      canvas: updates.canvas,
     };
     const { data } = await apiClient.patch<Note>(`/notes/${id}`, payload);
     return data;

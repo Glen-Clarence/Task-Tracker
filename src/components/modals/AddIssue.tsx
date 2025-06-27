@@ -3,12 +3,6 @@ import type { Dayjs } from "dayjs";
 import { priorityOptions, statusOptions } from "../../utils/options";
 import { ChartSpline, FlagTriangleRight, Plus } from "lucide-react";
 import apiClient from "../../api/_setup";
-import GitHubMarkdownEditor, {
-  EditorChangeEvent,
-  FileChangeEvent,
-} from "../editors/Markddown";
-
-import SimpleEditor from "@/components/editors/Editor";
 
 enum Priority {
   LOW = "LOW",
@@ -46,16 +40,6 @@ const AddIssue: React.FC = () => {
     }
   };
 
-  const handleEditorChange = (data: EditorChangeEvent) => {
-    console.log("Editor data:", data);
-    // data = { id: 'main-editor', content: '...', files: [...] }
-  };
-
-  const handleFileChange = (data: FileChangeEvent) => {
-    console.log("File change:", data);
-    // data = { id: 'main-editor', files: [...], newFiles: [...] } or { id: 'main-editor', files: [...], removedFileId: '...' }
-  };
-
   return (
     <Form
       form={form}
@@ -76,14 +60,7 @@ const AddIssue: React.FC = () => {
           { required: true, message: "Please enter the issue description" },
         ]}
       >
-        <div className="relative">
-          {/* <SimpleEditor /> */}
-          <GitHubMarkdownEditor
-            onChange={handleEditorChange}
-            onFileChange={handleFileChange}
-            showHeader={false}
-          />
-        </div>
+        <div className="relative"></div>
       </Form.Item>
 
       <div className="flex gap-2">

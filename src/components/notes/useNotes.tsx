@@ -42,7 +42,20 @@ const useNotes = () => {
   });
 
   const updateScene = useCallback(
-    (content: ExcalidrawElement[]) => {
+    (canvas: ExcalidrawElement[]) => {
+      if (!id) return;
+      updateNote.mutate({
+        id,
+        updates: {
+          canvas,
+        },
+      });
+    },
+    [id, updateNote.mutate]
+  );
+
+  const updateContent = useCallback(
+    (content: string) => {
       if (!id) return;
       updateNote.mutate({
         id,
@@ -53,6 +66,7 @@ const useNotes = () => {
     },
     [id, updateNote.mutate]
   );
+
   return {
     notes,
     note,
@@ -63,6 +77,7 @@ const useNotes = () => {
     isLoadingFolders,
     errorFolders,
     updateScene,
+    updateContent,
   };
 };
 

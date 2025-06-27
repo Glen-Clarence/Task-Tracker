@@ -20,7 +20,7 @@ const Issues = () => {
 
   const [activeFilter, setActiveFilter] = useState<string>(filterbtns[0].id);
 
-  const { issues, isLoading, project } = useIssues();
+  const { issues, project } = useIssues();
 
   console.log(project);
 
@@ -70,20 +70,20 @@ const Issues = () => {
     }
   };
 
-  const getLabelClass = (label: string) => {
-    switch (label) {
-      case "bug":
-        return "bg-red-500/20 text-red-500 border-red-500/20";
-      case "feature":
-        return "bg-blue-500/20 text-blue-500 border-blue-500/20";
-      case "enhancement":
-        return "bg-purple-500/20 text-purple-500 border-purple-500/20";
-      case "documentation":
-        return "bg-yellow-500/20 text-yellow-500 border-yellow-500/20";
-      default:
-        return "bg-gray-500/20 text-gray-500 border-gray-500/20";
-    }
-  };
+  // const getLabelClass = (label: string) => {
+  //   switch (label) {
+  //     case "bug":
+  //       return "bg-red-500/20 text-red-500 border-red-500/20";
+  //     case "feature":
+  //       return "bg-blue-500/20 text-blue-500 border-blue-500/20";
+  //     case "enhancement":
+  //       return "bg-purple-500/20 text-purple-500 border-purple-500/20";
+  //     case "documentation":
+  //       return "bg-yellow-500/20 text-yellow-500 border-yellow-500/20";
+  //     default:
+  //       return "bg-gray-500/20 text-gray-500 border-gray-500/20";
+  //   }
+  // };
 
   return (
     <ConfigProvider

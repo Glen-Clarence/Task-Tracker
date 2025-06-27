@@ -184,6 +184,7 @@ const AdminDashboard: React.FC = () => {
           <SearchFilterInput
             filters={filters}
             filterOptions={filterOptions}
+            // @ts-expect-error - TODO: fix this
             onSearch={(value, filters) => {
               setSearch(filters);
             }}

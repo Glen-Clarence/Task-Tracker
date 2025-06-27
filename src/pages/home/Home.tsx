@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
 
-import useKanbanStore, {
-  FormValues,
-  Task,
-} from "../../components/kanban/useKanbanStore";
+import useKanbanStore, { Task } from "../../components/kanban/useKanbanStore";
 import useUserStore from "../../store/useUserStore";
 
-import { Form, message, Modal } from "antd";
+import { message, Modal } from "antd";
 
 import clsx from "clsx";
 import dayjs from "dayjs";
 import QuickTask from "../../components/modals/QuickTask";
-import { ArrowUpToLine, PlusIcon, Send } from "lucide-react";
+import { ArrowUpToLine } from "lucide-react";
 import { AxiosResponse } from "axios";
 import apiClient from "@/api/_setup";
 import { useQuery } from "@tanstack/react-query";
@@ -29,6 +26,7 @@ import {
 import { Controller, useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 
 const Home = () => {
   const { profile } = useUserStore();
@@ -60,18 +58,20 @@ const Home = () => {
       title: "",
       priority: "LOW",
       status: "NOT_STARTED",
-      tag: "",
+      tagIDs: [],
+      isRecurring: false,
     },
   });
 
   const onSubmit = async (values: Task) => {
-    console.log(values);
     const newTodo: Task = {
       title: values.title,
       priority: values.priority,
       status: values.status,
       date: dayjs().format("YYYY-MM-DD"),
       isForAWeek: false,
+      tagIDs: [values.tagIDs as unknown as string],
+      isRecurring: values.isRecurring,
     };
     try {
       const response: AxiosResponse<Task[]> = await apiClient.post("/tasks", [
@@ -115,7 +115,7 @@ const Home = () => {
 
   return (
     <div>
-      <div className="container 2xl:max-w-[100%] grid grid-cols-3 text-white border-b pb-4 border-[#999]">
+      <div className="container mx-auto 2xl:max-w-[100%] grid grid-cols-3 text-white border-b pb-4 border-[#999]">
         <h1 className="text-2xl font-normal flex justify-start items-end">
           CCC-Tracker
         </h1>
@@ -127,7 +127,7 @@ const Home = () => {
         </p>
       </div>
 
-      <div className="container 2xl:max-w-[100%] pl-4  py-4  text-white pb-4">
+      <div className="container mx-auto 2xl:max-w-[100%] pl-4  py-4  text-white pb-4">
         <div
           className="grid grid-cols-1 mx-auto gap-4 mt-0 max-h-[calc(100vh-12rem)] overflow-y-auto"
           style={{
@@ -157,18 +157,6 @@ const Home = () => {
                       }
                     }}
                   />
-
-                  {/* Submit Button - positioned like ChatGPT */}
-                  {/* <div className="absolute bottom-2 right-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={handleSubmit(onSubmit)}
-                          className="rounded-full w-8 h-8 p-0 bg-gray-700 hover:bg-gray-600 text-white"
-                        >
-                          <Send size={14} />
-                        </Button>
-                      </div> */}
                 </div>
 
                 {/* Selection Row */}
@@ -234,12 +222,12 @@ const Home = () => {
 
                     {/* Tag Select as Button */}
                     <Controller
-                      name="tag"
+                      name="tagIDs"
                       control={control}
                       render={({ field }) => (
                         <Select
                           onValueChange={field.onChange}
-                          value={field.value}
+                          value={field.value as unknown as string}
                         >
                           <SelectTrigger className="w-[120px] h-8 hover:bg-black/20 text-sm font-medium text-white border-none rounded-full">
                             <SelectValue placeholder="Tag" />
@@ -258,6 +246,20 @@ const Home = () => {
                             </SelectGroup>
                           </SelectContent>
                         </Select>
+                      )}
+                    />
+
+                    <Controller
+                      name="isRecurring"
+                      control={control}
+                      render={({ field }) => (
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                          <p>Recurring</p>
+                        </div>
                       )}
                     />
 
@@ -290,12 +292,12 @@ const Home = () => {
                   </h5>
                   <p
                     className={clsx(
-                      "text-[10px] text-white px-2 py-1 rounded-full",
-                      task.status === "COMPLETED" && "bg-green-300 text-black",
-                      task.status === "IN_PROGRESS" && "bg-blue-300 text-black",
-                      task.status === "PENDING" && "bg-red-300 text-black",
+                      "text-[10px] px-2 py-1 rounded-full",
+                      task.status === "COMPLETED" && "bg-green-200 text-black",
+                      task.status === "IN_PROGRESS" && "bg-blue-200 text-black",
+                      task.status === "PENDING" && "bg-red-200 text-black",
                       task.status === "NOT_STARTED" &&
-                        "bg-yellow-300 text-black"
+                        "bg-yellow-200 text-black"
                     )}
                   >
                     {task.status}
@@ -321,12 +323,11 @@ const Home = () => {
                 </div>
                 <div className="flex justify-between items-center mt-4">
                   <div className="flex gap-2">
-                    <p className="bg-red-300 px-2 py-1 rounded-md text-sm">
-                      Bug
-                    </p>
-                    <p className="bg-blue-300 px-2 py-1 rounded-md text-sm">
-                      Enhancement
-                    </p>
+                    {task?.tags?.map((tag) => (
+                      <p className="bg-gray-200 capitalize text-black px-2 py-1 rounded-md text-sm">
+                        {tag.name}
+                      </p>
+                    ))}
                   </div>
                   {task.status !== "COMPLETED" ? (
                     <Button

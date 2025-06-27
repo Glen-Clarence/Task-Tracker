@@ -7,11 +7,10 @@ import IssuesOutlet from "./outlets/IssuesOutlet";
 import Projects from "../components/projects/Projects";
 import ProjectsOutlet from "./outlets/ProjectsOutlet";
 import AdminDashboard from "@/components/admin/AdminDashboard";
-import { CardStack } from "@/components/stack/Stack";
 import AdminOutlet from "./outlets/AdminOutlet";
 import FoldersOutlet from "./outlets/FolderOutlet";
 // import Editor from "@/components/notes/Editor";
-import Doodler from "@/components/notes/Doodler";
+import Obsidian from "@/components/notes/Obsidian";
 const Dashboard = lazy(() => import("../components/dashboard/Dashboard"));
 const LoginForm = lazy(() => import("../components/login/Login"));
 
@@ -51,7 +50,11 @@ export const Approuter = () => {
             // },
             {
               path: "/folders/doodles/editor/:id",
-              element: <Doodler />,
+              element: <Obsidian />,
+            },
+            {
+              path: "/folders/obsidian/editor/:id",
+              element: <Obsidian />,
             },
           ],
         },
@@ -63,10 +66,6 @@ export const Approuter = () => {
             {
               path: "/admin",
               element: <AdminDashboard />,
-            },
-            {
-              path: "/admin/tasks",
-              element: <CardStack />,
             },
           ],
         },

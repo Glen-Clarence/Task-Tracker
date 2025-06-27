@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Project, projectsApi } from "../../api/projects.api";
+import { projectsApi } from "../../api/projects.api";
 
 const useProjects = () => {
   const {

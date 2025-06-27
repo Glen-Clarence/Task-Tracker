@@ -1,27 +1,19 @@
-import { ArrowBigLeft } from "lucide-react";
+import { Note } from "@/api/notes.api";
 import Canvas from "../modals/Canvas";
-import { Button } from "../ui/button";
-import useNotes from "./useNotes";
-import { useNavigate } from "react-router";
+import { ExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 
-const Doodler: React.FC = () => {
-  const { note, updateScene, isNoteLoaded } = useNotes();
-
-  const navigate = useNavigate();
-
+const Doodler: React.FC<{
+  note: Note | undefined;
+  updateScene: (scene: ExcalidrawElement[]) => void;
+  isNoteLoaded: boolean;
+}> = ({ note, updateScene, isNoteLoaded }) => {
   return (
     <div className="w-[83vw] h-[80vh]">
       {isNoteLoaded && note && (
         <>
-          <span className="flex gap-4">
-            <Button onClick={() => navigate("/folders/notes")}>
-              <ArrowBigLeft />
-            </Button>
-            <h2 className="text-white text-xl mb-4">{note.name}</h2>
-          </span>
           <Canvas
             key={note.id}
-            initialData={note.content}
+            initialData={note.canvas}
             onUpdateScene={updateScene}
           />
         </>
