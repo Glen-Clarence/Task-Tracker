@@ -25,7 +25,7 @@ export const Approuter = () => {
       element: <Layout />,
       children: [
         {
-          path: "/home",
+          path: "/",
           element: <Home />,
         },
         {
