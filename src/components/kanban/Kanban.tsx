@@ -1,18 +1,38 @@
 import React, { useState, DragEvent } from "react";
 import { PlusIcon, WandSparkles } from "lucide-react";
 import fire from "../../assets/fire.lottie";
+import { saveAs } from "file-saver";
 
 import { motion } from "framer-motion";
 
 import TrelloCard from "../Card";
-import useKanbanStore, { ColumnType, Task } from "../../store/useKanbanStore";
+import useKanbanStore, { ColumnType, Task } from "./useKanbanStore";
 import { useKanban } from "./useKanban";
-import { Form, FormInstance, Button, Select, Modal, DatePicker } from "antd";
+import {
+  Form,
+  FormInstance,
+  Button,
+  Select,
+  Modal,
+  DatePicker,
+  theme,
+  ConfigProvider,
+  message,
+} from "antd";
+import { Button as ShadButton } from "../ui/button";
 import { priorityOptions } from "../../utils/options";
 import TextArea from "antd/es/input/TextArea";
 import dayjs from "dayjs";
 import { elaborateTaskWithGroq } from "../../utils/groqTaskElaborator";
 import { DotLottie, DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { useMutation } from "@tanstack/react-query";
+import { taskApi } from "@/api/task.api";
+
+type FilterOption = {
+  id: string;
+  label: string;
+  disabled?: boolean;
+};
 
 export const Kanban = () => {
   const {
@@ -23,8 +43,66 @@ export const Kanban = () => {
     handleEdit,
     updateTask,
   } = useKanban();
+
+  const filterOptions: FilterOption[] = [
+    { id: "board", label: "Board", disabled: false },
+    { id: "list", label: "List", disabled: false },
+  ];
+
+  const [activeFilter, setActiveFilter] = useState<string>(filterOptions[0].id);
+
+  const { mutate: downloadTasks } = useMutation({
+    mutationFn: taskApi.download,
+    onSuccess: (data) => {
+      console.log(data);
+      saveAs(data, "tasks.xlsx");
+    },
+    onError: () => {
+      message.error("Error downloading tasks");
+    },
+  });
+
   return (
-    <div className="">
+    <div className="container 2xl:max-w-[100%] mx-auto">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl text-white border-b border-[#ccc] pb-4">
+          My Tasks
+        </h1>
+        <ShadButton onClick={() => downloadTasks()}>
+          Download Your Tasks
+        </ShadButton>
+      </div>
+      <div className="flex gap-2 mt-2">
+        <ConfigProvider
+          theme={{
+            token: {
+              colorPrimary: "#777",
+              fontSize: 12,
+            },
+            algorithm: theme.darkAlgorithm,
+          }}
+        >
+          <div className="flex gap-2 mt-2">
+            {filterOptions.map((option) => (
+              <Button
+                key={option.id}
+                type={activeFilter === option.id ? "default" : "primary"}
+                ghost={activeFilter === option.id}
+                size="small"
+                disabled={option.disabled}
+                onClick={() => setActiveFilter(option.id)}
+                className={
+                  activeFilter === option.id
+                    ? "!text-white !border-white hover:!text-white hover:!border-white"
+                    : ""
+                }
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </ConfigProvider>
+      </div>
       <Board
         form={form}
         handleSubmit={handleSubmit}
@@ -228,7 +306,7 @@ const Column = ({
       className="w-56 shrink-0 min-h-[90vh]"
       style={{ scrollbarWidth: "none" }}
     >
-      <div className="mb-3 flex items-center justify-between sticky top-0  z-10 pt-6">
+      <div className="mb-3 flex items-center justify-between sticky top-0  z-10 pt-2">
         <div className="flex items-center justify-between w-full px-3 py-2 rounded-lg">
           <h3 className={`font-medium text-sm ${headingColor}`}>{title}</h3>
           <div className="flex items-center justify-end">

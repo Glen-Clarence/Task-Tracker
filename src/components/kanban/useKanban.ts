@@ -3,7 +3,7 @@ import { Form, message } from "antd";
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import useUserStore from "../../store/useUserStore";
-import useKanbanStore, { FormValues, Task } from "../../store/useKanbanStore";
+import useKanbanStore, { FormValues, Task } from "./useKanbanStore";
 import { AxiosResponse } from "axios";
 import apiClient from "../../api/_setup";
 
@@ -51,11 +51,11 @@ export const useKanban = () => {
       isForAWeek: false,
     };
     try {
-      const response: AxiosResponse<Task> = await apiClient.post("/tasks", [
+      const response: AxiosResponse<Task[]> = await apiClient.post("/tasks", [
         newTodo,
       ]);
       if (response.status === 200 || response.status === 201) {
-        addTask(newTodo);
+        addTask(response.data[0]);
         message.success("Task added successfully!");
       } else {
         message.error("Failed to add task");

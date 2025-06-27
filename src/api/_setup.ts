@@ -109,9 +109,16 @@ class APIClient {
   async get<T>(
     url: string,
     params: object = {},
-    headers: object = {}
+    headers: object = {},
+    options: { responseType?: "blob" | "json" } = { responseType: "json" }
   ): Promise<AxiosResponse<T>> {
-    return this.client.get<T>(url, { params, headers });
+    const { responseType, ...axiosOptions } = options;
+    return this.client.get<T>(url, {
+      params,
+      headers,
+      responseType,
+      ...axiosOptions,
+    });
   }
 
   async post<T, D = unknown>(
@@ -154,8 +161,8 @@ class APIClient {
   }
 }
 
-const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-// const baseURL = "http://localhost:3000";
+// const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const baseURL = "http://localhost:3000";
 const apiClient = new APIClient(baseURL);
 
 export default apiClient;
