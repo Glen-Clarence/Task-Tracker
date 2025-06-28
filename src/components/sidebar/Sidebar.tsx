@@ -37,7 +37,7 @@ const Sidebar = () => {
   });
 
   const navItems = [
-    { key: "/home", icon: Home, label: "Home" },
+    { key: "/", icon: Home, label: "Home" },
     { key: "/dashboard", icon: BookDashed, label: "Dashboard" },
     { key: "/tasks", icon: ListTodo, label: "Tasks" },
     { key: "/issues", icon: AlertCircle, label: "Issues" },
