@@ -36,7 +36,7 @@ const Google = () => {
         };
         setToken(token);
         setProfile(user);
-        navigate("/home");
+        navigate("/");
       });
   };
   return (
