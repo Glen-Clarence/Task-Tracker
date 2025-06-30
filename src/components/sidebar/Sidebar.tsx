@@ -24,7 +24,7 @@ import { Button } from "../ui/button";
 const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const profile = useUserStore((state) => state.profile);
   const logout = useUserStore((state) => state.logout);
 
