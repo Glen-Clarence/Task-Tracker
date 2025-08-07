@@ -231,6 +231,28 @@ const AddTask: React.FC<{
             suffixIcon={<Tag size={12} />}
           />
         </Form.Item>
+        <Form.Item
+          name="repository"
+        >
+          <Select
+            placeholder="Repository"
+            options={[
+              { label: "Frontend", value: "frontend" },
+              { label: "Backend", value: "backend" },
+              { label: "Mobile", value: "mobile" },
+              { label: "DevOps", value: "devops" },
+              { label: "Database", value: "database" },
+              { label: "API", value: "api" },
+            ]}
+            size="small"
+            style={{
+              maxWidth: "200px",
+              minWidth: "120px",
+            }}
+            allowClear
+            suffixIcon={<GitBranchPlus size={12} />}
+          />
+        </Form.Item>
         <Dropdown menu={{ items: menuItems }} trigger={["click"]}>
           <Button
             size="small"

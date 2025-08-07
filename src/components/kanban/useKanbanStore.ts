@@ -25,6 +25,7 @@ export interface Task {
     id: string;
     name: string;
   }[];
+  repository?: string;
 }
 
 export interface QuickTaskType {
@@ -44,6 +45,7 @@ export interface FormValues {
   priority?: string;
   employeeId?: string;
   date?: dayjs.Dayjs;
+  repository?: string;
 }
 
 export interface Stats {

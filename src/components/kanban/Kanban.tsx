@@ -20,7 +20,7 @@ import {
   message,
 } from "antd";
 import { Button as ShadButton } from "../ui/button";
-import { priorityOptions } from "../../utils/options";
+import { priorityOptions , repositoryOptions } from "../../utils/options";
 import TextArea from "antd/es/input/TextArea";
 import dayjs from "dayjs";
 import { elaborateTaskWithGroq } from "../../utils/groqTaskElaborator";
@@ -581,6 +581,17 @@ const AddCard = ({ column, form, handleSubmit }: AddCardProps) => {
               rules={[{ required: true, message: "Please select a date" }]}
             >
               <DatePicker format="YYYY-MM-DD" />
+            </Form.Item>
+
+            <Form.Item
+              name="repository"
+              label="Repository"
+            >
+              <Select 
+                placeholder="Select repository" 
+                options={repositoryOptions}
+                allowClear
+              />
             </Form.Item>
           </div>
           <div className="grid xl:grid-cols-2 grid-cols-1 gap-4">

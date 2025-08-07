@@ -14,7 +14,7 @@ import apiClient from "@/api/_setup";
 import { useQuery } from "@tanstack/react-query";
 import { tagsApi } from "@/api/tags.api";
 // import TextArea from "antd/es/input/TextArea";
-import { priorityOptions, statusOptions } from "@/utils/options";
+import { priorityOptions, statusOptions, repositoryOptions } from "@/utils/options";
 import {
   SelectContent,
   SelectValue,
@@ -60,6 +60,7 @@ const Home = () => {
       status: "NOT_STARTED",
       tagIDs: [],
       isRecurring: false,
+      repository: "frontend",
     },
   });
 
@@ -72,6 +73,7 @@ const Home = () => {
       isForAWeek: false,
       tagIDs: [values.tagIDs as unknown as string],
       isRecurring: values.isRecurring,
+      repository: values.repository,
     };
     try {
       const response: AxiosResponse<Task[]> = await apiClient.post("/tasks", [
@@ -263,6 +265,34 @@ const Home = () => {
                       )}
                     />
 
+                    <Controller
+                      name="repository"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <SelectTrigger className="w-[140px] h-8 hover:bg-black/20 text-sm font-medium text-white border-none rounded-full">
+                            <SelectValue placeholder="Repository" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#202020]">
+                            <SelectGroup>
+                              {repositoryOptions.map((option) => (
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                  className="!text-white hover:!bg-black/20 hover:!border-none  focus:!border-none"
+                                >
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+
                     <div className="ml-auto p-2 bg-white rounded-full cursor-pointer">
                       <ArrowUpToLine
                         color="#000"
@@ -307,6 +337,10 @@ const Home = () => {
                   <p className="text-sm flex flex-col col-span-3">
                     <span className="text-gray-400 text-[12px]">Priority:</span>
                     <span>{task.priority}</span>
+                  </p>
+                  <p className="text-sm flex flex-col col-span-3">
+                    <span className="text-gray-400 text-[12px]">Repository:</span>
+                    <span>{task.repository}</span>
                   </p>
                   <p className="text-sm text-gray-500 col-span-6">
                     <span className="text-gray-400 text-[12px] ">

@@ -6,6 +6,7 @@ import QuickTask from "./QuickTask";
 import Canvas from "./Canvas";
 import AddIssue from "./AddIssue";
 import AddRepo from "./AddRepo";
+import useUserStore from "../../store/useUserStore";
 
 const QuickAdd: React.FC<{
   setIsModalOpen: React.Dispatch<
@@ -15,7 +16,10 @@ const QuickAdd: React.FC<{
     }>
   >;
 }> = ({ setIsModalOpen }) => {
-  const items: TabsProps["items"] = [
+  const { profile } = useUserStore();
+  const isAdmin = profile?.role === "admin";
+
+  const baseItems: TabsProps["items"] = [
     {
       key: "1",
       label: "Task",
@@ -32,17 +36,25 @@ const QuickAdd: React.FC<{
       children: <AddIssue />,
     },
     {
-      key: "4",
-      label: "Repository",
-      children: <AddRepo />,
-    },
-    {
       key: "5",
       label: "Note",
       children: <Canvas />,
       disabled: true,
     },
   ];
+
+  // Add Repository tab only for admin users
+  const items: TabsProps["items"] = isAdmin
+    ? [
+        ...baseItems.slice(0, 3),
+        {
+          key: "4",
+          label: "Repository",
+          children: <AddRepo />,
+        },
+        ...baseItems.slice(3),
+      ]
+    : baseItems;
 
   return (
     <div className="-mt-4">
