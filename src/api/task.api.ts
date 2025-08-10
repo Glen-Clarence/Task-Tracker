@@ -52,10 +52,10 @@ export const taskApi = {
     const { data } = await apiClient.get<Stats>("/tasks/stats");
     return data;
   },
-  download: async (): Promise<Blob> => {
+  download: async (params?: { fromDate?: string; toDate?: string }): Promise<Blob> => {
     const { data } = await apiClient.get<Blob>(
       "/tasks/download",
-      {},
+      params,
       {},
       {
         responseType: "blob",

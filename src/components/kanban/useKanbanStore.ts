@@ -25,7 +25,10 @@ export interface Task {
     id: string;
     name: string;
   }[];
-  repository?: string;
+  repository?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface QuickTaskType {
@@ -146,6 +149,7 @@ const useKanbanStore = create<KanbanState>((set, get) => ({
         userId: task.userId,
         user: task.user,
         tags: task.tags,
+        repository: task.repository,
       }));
 
       set({ tasks: mappedCards });

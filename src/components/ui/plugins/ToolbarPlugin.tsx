@@ -11,6 +11,7 @@ import {
   $getSelection,
   $isRangeSelection,
   $createParagraphNode,
+  $createTextNode,
   $getNodeByKey,
   LexicalEditor,
   RangeSelection,
@@ -55,7 +56,9 @@ import {
   Strikethrough,
   Underline,
   Undo2,
+  Upload,
 } from "lucide-react";
+import { uploadApi } from "../../../api/upload.api";
 
 const LowPriority = 1;
 
@@ -502,7 +505,7 @@ export default function ToolbarPlugin({
 }: {
   setShowDoodle: (show: boolean) => void;
   showDoodle: boolean;
-  title: string;
+  title?: string;
 }): JSX.Element {
   const [editor] = useLexicalComposerContext();
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -775,6 +778,87 @@ export default function ToolbarPlugin({
           </button>
           {isLink &&
             createPortal(<FloatingLinkEditor editor={editor} />, document.body)}
+          <Divider />
+          <button
+            onClick={() => {
+              // Create a file input for upload
+              const fileInput = document.createElement("input");
+              fileInput.type = "file";
+              fileInput.accept = "image/*,video/*";
+              fileInput.style.display = "none";
+              document.body.appendChild(fileInput);
+
+              fileInput.onchange = async (event) => {
+                const target = event.target as HTMLInputElement;
+                const files = target.files;
+                if (files && files.length > 0) {
+                  const file = files[0];
+                  const isImage = file.type.startsWith("image/");
+                  const isVideo = file.type.startsWith("video/");
+
+                  if (isImage || isVideo) {
+                    try {
+                      const uploadResponse = await uploadApi.uploadFile(file);
+
+                      // Insert the media into the editor
+                      editor.update(() => {
+                        const selection = $getSelection();
+                        if ($isRangeSelection(selection)) {
+                          const paragraphNode = $createParagraphNode();
+                          const textNode = $createTextNode("");
+                          paragraphNode.append(textNode);
+                          selection.insertNodes([paragraphNode]);
+
+                          const range = document.createRange();
+                          const paragraphElement = editor.getElementByKey(
+                            paragraphNode.getKey()
+                          );
+                          if (paragraphElement) {
+                            range.selectNodeContents(paragraphElement);
+                            range.collapse(false);
+
+                            if (isImage) {
+                              const imgElement = document.createElement("img");
+                              imgElement.src = uploadResponse.url;
+                              imgElement.alt = file.name;
+                              imgElement.style.maxWidth = "100%";
+                              imgElement.style.height = "auto";
+                              imgElement.style.margin = "8px 0";
+                              imgElement.style.borderRadius = "4px";
+                              range.insertNode(imgElement);
+                            } else if (isVideo) {
+                              const videoElement =
+                                document.createElement("video");
+                              videoElement.src = uploadResponse.url;
+                              videoElement.controls = true;
+                              videoElement.style.maxWidth = "100%";
+                              videoElement.style.height = "auto";
+                              videoElement.style.margin = "8px 0";
+                              videoElement.style.borderRadius = "4px";
+                              videoElement.title = file.name;
+                              range.insertNode(videoElement);
+                            }
+                          }
+                        }
+                      });
+                    } catch (error) {
+                      console.error("Upload failed:", error);
+                      alert("Failed to upload file. Please try again.");
+                    }
+                  }
+                }
+
+                // Clean up
+                document.body.removeChild(fileInput);
+              };
+
+              fileInput.click();
+            }}
+            className="toolbar-item spaced p-2 rounded-lg hover:bg-black/60 transition-colors text-gray-700"
+            aria-label="Upload Media"
+          >
+            <Upload size={16} color="white" />
+          </button>
           <Divider />
           <button
             onClick={() => {

@@ -8,6 +8,7 @@ import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 // import type { ErrorBoundaryType } from "@lexical/react/LexicalRichTextPlugin";
 // import TreeViewPlugin from "../ui/plugins/TreeViewPlugin";
 import ToolbarPlugin from "../ui/plugins/ToolbarPlugin";
+import ImageUploadPlugin from "../ui/plugins/ImageUpload";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 import { ListItemNode, ListNode } from "@lexical/list";
@@ -110,7 +111,7 @@ export default function Editor({
   setShowDoodle: (show: boolean) => void;
   showDoodle: boolean;
   updateContent: (content: string) => void;
-  title: string;
+  title?: string;
 }) {
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const prevContentRef = useRef<string>("");
@@ -169,6 +170,7 @@ export default function Editor({
           {/* <AutoLinkPlugin /> */}
           {/* <ListMaxIndentLevelPlugin maxDepth={7} /> */}
           <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
+          <ImageUploadPlugin />
           <OnChangePlugin onChange={onChange} initialContent={initialContent} />
         </div>
       </div>

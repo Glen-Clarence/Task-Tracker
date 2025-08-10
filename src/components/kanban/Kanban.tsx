@@ -20,13 +20,14 @@ import {
   message,
 } from "antd";
 import { Button as ShadButton } from "../ui/button";
-import { priorityOptions , repositoryOptions } from "../../utils/options";
+import { priorityOptions, repositoryOptions } from "../../utils/options";
 import TextArea from "antd/es/input/TextArea";
 import dayjs from "dayjs";
 import { elaborateTaskWithGroq } from "../../utils/groqTaskElaborator";
 import { DotLottie, DotLottieReact } from "@lottiefiles/dotlottie-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { taskApi } from "@/api/task.api";
+import { projectsApi } from "@/api/projects.api";
 
 type FilterOption = {
   id: string;
@@ -50,6 +51,9 @@ export const Kanban = () => {
   ];
 
   const [activeFilter, setActiveFilter] = useState<string>(filterOptions[0].id);
+  const [dateRange, setDateRange] = useState<
+    [dayjs.Dayjs | null, dayjs.Dayjs | null]
+  >([null, null]);
 
   const { mutate: downloadTasks } = useMutation({
     mutationFn: taskApi.download,
@@ -62,15 +66,58 @@ export const Kanban = () => {
     },
   });
 
+  const handleDownload = () => {
+    const fromDate = dateRange[0]?.format("YYYY-MM-DD");
+    const toDate = dateRange[1]?.format("YYYY-MM-DD");
+
+    // Only pass dates if they are selected
+    const params: { fromDate?: string; toDate?: string } = {};
+    if (fromDate) params.fromDate = fromDate;
+    if (toDate) params.toDate = toDate;
+
+    downloadTasks(Object.keys(params).length > 0 ? params : undefined);
+  };
+
   return (
     <div className="container 2xl:max-w-[100%] mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl text-white border-b border-[#ccc] pb-4">
           My Tasks
         </h1>
-        <ShadButton onClick={() => downloadTasks()}>
-          Download Your Tasks
-        </ShadButton>
+
+        <div className="flex items-center gap-4">
+          <ConfigProvider
+            theme={{
+              token: {
+                colorPrimary: "#777",
+                fontSize: 12,
+              },
+              algorithm: theme.darkAlgorithm,
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-white text-sm">From:</span>
+              <DatePicker
+                value={dateRange[0]}
+                onChange={(date) => setDateRange([date, dateRange[1]])}
+                format="YYYY-MM-DD"
+                placeholder="Start date"
+                size="small"
+                style={{ width: 120 }}
+              />
+              <span className="text-white text-sm">To:</span>
+              <DatePicker
+                value={dateRange[1]}
+                onChange={(date) => setDateRange([dateRange[0], date])}
+                format="YYYY-MM-DD"
+                placeholder="End date"
+                size="small"
+                style={{ width: 120 }}
+              />
+            </div>
+          </ConfigProvider>
+          <ShadButton onClick={handleDownload}>Download Your Tasks</ShadButton>
+        </div>
       </div>
       <div className="flex gap-2 mt-2">
         <ConfigProvider
@@ -495,6 +542,17 @@ const AddCard = ({ column, form, handleSubmit }: AddCardProps) => {
     }
   };
 
+  const { data: repositories, isLoading: isLoadingRepositories } = useQuery({
+    queryKey: ["repositories"],
+    queryFn: async () => {
+      const repositories = await projectsApi.getAll();
+      return repositories.map((repository) => ({
+        value: repository.id,
+        label: repository.name,
+      }));
+    },
+  });
+
   return (
     <>
       <Button
@@ -583,13 +641,11 @@ const AddCard = ({ column, form, handleSubmit }: AddCardProps) => {
               <DatePicker format="YYYY-MM-DD" />
             </Form.Item>
 
-            <Form.Item
-              name="repository"
-              label="Repository"
-            >
-              <Select 
-                placeholder="Select repository" 
-                options={repositoryOptions}
+            <Form.Item name="repository" label="Repository">
+              <Select
+                placeholder="Select repository"
+                options={repositories}
+                loading={isLoadingRepositories}
                 allowClear
               />
             </Form.Item>
