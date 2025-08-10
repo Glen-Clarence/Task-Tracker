@@ -30,6 +30,7 @@ import { elaborateTaskWithGroq } from "../../utils/groqTaskElaborator";
 import dayjs from "dayjs";
 import { useQuery } from "@tanstack/react-query";
 import { tagsApi } from "@/api/tags.api";
+import { projectsApi } from "@/api/projects.api";
 
 const AddTask: React.FC<{
   setIsModalOpen: React.Dispatch<
@@ -50,6 +51,17 @@ const AddTask: React.FC<{
       return tags.map((tag) => ({
         value: tag.id,
         label: tag.name,
+      }));
+    },
+  });
+
+  const { data: repositories, isLoading: isLoadingRepositories } = useQuery({
+    queryKey: ["repositories"],
+    queryFn: async () => {
+      const repositories = await projectsApi.getAll();
+      return repositories.map((repository) => ({
+        value: repository.id,
+        label: repository.name,
       }));
     },
   });
@@ -229,6 +241,20 @@ const AddTask: React.FC<{
             loading={isLoadingTags}
             allowClear
             suffixIcon={<Tag size={12} />}
+          />
+        </Form.Item>
+        <Form.Item name="repositoryId">
+          <Select
+            placeholder="Repository"
+            options={repositories}
+            loading={isLoadingRepositories}
+            size="small"
+            style={{
+              maxWidth: "200px",
+              minWidth: "120px",
+            }}
+            allowClear
+            suffixIcon={<GitBranchPlus size={12} />}
           />
         </Form.Item>
         <Dropdown menu={{ items: menuItems }} trigger={["click"]}>

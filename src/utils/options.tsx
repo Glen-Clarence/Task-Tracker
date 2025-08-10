@@ -12,3 +12,10 @@ export const priorityOptions = [
   { value: "MEDIUM", label: "Medium" },
   { value: "HIGH", label: "High" },
 ];
+
+export const repositoryOptions = [
+  { value: "frontend", label: "Frontend" },
+  { value: "backend", label: "Backend" },
+  { value: "mobile", label: "Mobile" },
+  { value: "infra", label: "Infrastructure" },
+];

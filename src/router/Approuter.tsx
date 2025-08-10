@@ -11,6 +11,7 @@ import AdminOutlet from "./outlets/AdminOutlet";
 import FoldersOutlet from "./outlets/FolderOutlet";
 // import Editor from "@/components/notes/Editor";
 import Obsidian from "@/components/notes/Obsidian";
+const NewIssue = lazy(() => import("../components/issues/NewIssue"));
 const Dashboard = lazy(() => import("../components/dashboard/Dashboard"));
 const LoginForm = lazy(() => import("../components/login/Login"));
 
@@ -76,6 +77,10 @@ export const Approuter = () => {
             {
               path: "/issues",
               element: <Issues />,
+            },
+            {
+              path: "/issues/new",
+              element: <NewIssue />,
             },
           ],
         },

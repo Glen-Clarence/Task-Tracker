@@ -1,6 +1,7 @@
 import { Spin, Button } from "antd";
 import useProjects from "./useProjects";
 import { useNavigate } from "react-router";
+import clsx from "clsx";
 
 const Projects: React.FC = () => {
   const { projects, isLoading } = useProjects();
@@ -9,7 +10,7 @@ const Projects: React.FC = () => {
     <div className="px-4 text-white">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl text-white mt-4">Repositories</h2>
-        <Button className="mt-4">Create Project</Button>
+        <Button className={clsx("mt-4")}>Create Project</Button>
       </div>
       <Spin spinning={isLoading}>
         <div className="flex flex-wrap gap-8">

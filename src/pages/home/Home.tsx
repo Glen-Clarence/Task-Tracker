@@ -27,6 +27,7 @@ import { Controller, useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { projectsApi } from "@/api/projects.api";
 
 const Home = () => {
   const { profile } = useUserStore();
@@ -53,6 +54,17 @@ const Home = () => {
     },
   });
 
+  const { data: repositories, isLoading: isLoadingRepositories } = useQuery({
+    queryKey: ["repositories"],
+    queryFn: async () => {
+      const repositories = await projectsApi.getAll();
+      return repositories.map((repository) => ({
+        value: repository.id,
+        label: repository.name,
+      }));
+    },
+  });
+
   const { register, handleSubmit, control } = useForm({
     defaultValues: {
       title: "",
@@ -60,6 +72,7 @@ const Home = () => {
       status: "NOT_STARTED",
       tagIDs: [],
       isRecurring: false,
+      repositoryId: undefined,
     },
   });
 
@@ -72,6 +85,7 @@ const Home = () => {
       isForAWeek: false,
       tagIDs: [values.tagIDs as unknown as string],
       isRecurring: values.isRecurring,
+      repository: values.repository,
     };
     try {
       const response: AxiosResponse<Task[]> = await apiClient.post("/tasks", [
@@ -113,6 +127,8 @@ const Home = () => {
       return 0;
     });
 
+  console.log(tasks);
+
   return (
     <div>
       <div className="container mx-auto 2xl:max-w-[100%] grid grid-cols-3 text-white border-b pb-4 border-[#999]">
@@ -134,7 +150,7 @@ const Home = () => {
             scrollbarWidth: "none",
           }}
         >
-          <div className="flex w-[60%] mx-auto flex-col items-center justify-start">
+          <div className="flex w-[80%] mx-auto flex-col items-center justify-start">
             <h3 className="text-4xl font-medium">{dayjs().format("h:mm")}</h3>
             <h1 className="text-2xl font-normal text-center">
               Hy, {profile?.name.split(" ")[0]}
@@ -230,7 +246,7 @@ const Home = () => {
                           value={field.value as unknown as string}
                         >
                           <SelectTrigger className="w-[120px] h-8 hover:bg-black/20 text-sm font-medium text-white border-none rounded-full">
-                            <SelectValue placeholder="Tag" />
+                            <SelectValue placeholder="Tags" />
                           </SelectTrigger>
                           <SelectContent className="bg-[#202020]">
                             <SelectGroup className="max-h-[200px] overflow-y-auto">
@@ -263,6 +279,35 @@ const Home = () => {
                       )}
                     />
 
+                    <Controller
+                      name="repositoryId"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          disabled={isLoadingRepositories}
+                        >
+                          <SelectTrigger className="w-[140px] h-8 hover:bg-black/20 text-sm font-medium text-white border-none rounded-full">
+                            <SelectValue placeholder="Repository" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#202020]">
+                            <SelectGroup>
+                              {repositories?.map((option) => (
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                  className="!text-white hover:!bg-black/20 hover:!border-none  focus:!border-none"
+                                >
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+
                     <div className="ml-auto p-2 bg-white rounded-full cursor-pointer">
                       <ArrowUpToLine
                         color="#000"
@@ -275,82 +320,113 @@ const Home = () => {
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            {tasksToday?.map((task) => (
-              <div
-                key={task.id}
-                className="bg-[#2d2d2d] col-span-1 text-white rounded-3xl p-4 h-fit"
-              >
-                <div className="flex justify-between items-start gap-8 border-b border-[#363636] pb-4">
-                  <h5
-                    className={clsx(
-                      "text-xl font-normal whitespace-nowrap overflow-hidden text-ellipsis",
-                      task.status === "COMPLETED" && "line-through"
-                    )}
+          <div className="overflow-x-auto">
+            <table className="w-full bg-[#2d2d2d] text-white rounded-3xl overflow-hidden">
+              <thead className="bg-[#363636]">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium">Title</th>
+                  <th className="px-4 py-3 text-left font-medium">Status</th>
+                  <th className="px-4 py-3 text-left font-medium">Priority</th>
+                  <th className="px-4 py-3 text-left font-medium">
+                    Repository
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium">
+                    Description
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium">
+                    Created At
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium">Tags</th>
+                  <th className="px-4 py-3 text-left font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tasksToday?.map((task) => (
+                  <tr
+                    key={task.id}
+                    className="border-b border-[#363636] hover:bg-[#363636]/50"
                   >
-                    {task.title}
-                  </h5>
-                  <p
-                    className={clsx(
-                      "text-[10px] px-2 py-1 rounded-full",
-                      task.status === "COMPLETED" && "bg-green-200 text-black",
-                      task.status === "IN_PROGRESS" && "bg-blue-200 text-black",
-                      task.status === "PENDING" && "bg-red-200 text-black",
-                      task.status === "NOT_STARTED" &&
-                        "bg-yellow-200 text-black"
-                    )}
-                  >
-                    {task.status}
-                  </p>
-                </div>
-                <div className="grid grid-cols-12 gap-4 mt-4 border-b border-[#363636] pb-4">
-                  <p className="text-sm flex flex-col col-span-3">
-                    <span className="text-gray-400 text-[12px]">Priority:</span>
-                    <span>{task.priority}</span>
-                  </p>
-                  <p className="text-sm text-gray-500 col-span-6">
-                    <span className="text-gray-400 text-[12px] ">
-                      Description:
-                    </span>
-                    <span className="line-clamp-2">{task.description}</span>
-                  </p>
-                  <p className="text-sm flex flex-col text-gray-500 col-span-3">
-                    <span className="text-gray-400 text-[12px]">
-                      Created At:
-                    </span>
-                    <span>{dayjs(task.createdAt).format("MMM DD")}</span>
-                  </p>
-                </div>
-                <div className="flex justify-between items-center mt-4">
-                  <div className="flex gap-2">
-                    {task?.tags?.map((tag) => (
-                      <p className="bg-gray-200 capitalize text-black px-2 py-1 rounded-md text-sm">
-                        {tag.name}
-                      </p>
-                    ))}
-                  </div>
-                  {task.status !== "COMPLETED" ? (
-                    <Button
-                      // variant="outlined"
-                      // shape="round"
-                      color="geekblue"
-                      onClick={() => moveTaskTo(task.id as string, "COMPLETED")}
-                    >
-                      Mark Done
-                    </Button>
-                  ) : (
-                    <Button
-                      // variant="outlined"
-                      // shape="round"
-                      color="geekblue"
-                      onClick={() => moveTaskTo(task.id as string, "PENDING")}
-                    >
-                      Mark Undone
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
+                    <td className="px-4 py-3">
+                      <h5
+                        className={clsx(
+                          "text-lg font-normal whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]",
+                          task.status === "COMPLETED" && "line-through"
+                        )}
+                      >
+                        {task.title}
+                      </h5>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={clsx(
+                          "text-[10px] px-2 py-1 rounded-full",
+                          task.status === "COMPLETED" &&
+                            "bg-green-200 text-black",
+                          task.status === "IN_PROGRESS" &&
+                            "bg-blue-200 text-black",
+                          task.status === "PENDING" && "bg-red-200 text-black",
+                          task.status === "NOT_STARTED" &&
+                            "bg-yellow-200 text-black"
+                        )}
+                      >
+                        {task.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm">{task.priority}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm">{task.repository?.name}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm text-gray-400 line-clamp-2 max-w-[200px]">
+                        {task.description}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm">
+                        {dayjs(task.createdAt).format("MMM DD")}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2 flex-wrap">
+                        {task?.tags?.map((tag) => (
+                          <span
+                            key={tag.id}
+                            className="bg-gray-200 capitalize text-black px-2 py-1 rounded-md text-xs"
+                          >
+                            {tag.name}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {task.status !== "COMPLETED" ? (
+                        <Button
+                          color="geekblue"
+                          onClick={() =>
+                            moveTaskTo(task.id as string, "COMPLETED")
+                          }
+                          className="text-xs"
+                        >
+                          Mark Done
+                        </Button>
+                      ) : (
+                        <Button
+                          color="geekblue"
+                          onClick={() =>
+                            moveTaskTo(task.id as string, "PENDING")
+                          }
+                          className="text-xs"
+                        >
+                          Mark Undone
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
