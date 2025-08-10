@@ -20,7 +20,7 @@ import {
   message,
 } from "antd";
 import { Button as ShadButton } from "../ui/button";
-import { priorityOptions, repositoryOptions } from "../../utils/options";
+import { priorityOptions } from "../../utils/options";
 import TextArea from "antd/es/input/TextArea";
 import dayjs from "dayjs";
 import { elaborateTaskWithGroq } from "../../utils/groqTaskElaborator";
