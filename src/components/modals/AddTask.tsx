@@ -67,6 +67,13 @@ const AddTask: React.FC<{
   });
 
   const handleSubmit = async (values: Task) => {
+    // Ensure repository is selected
+    const selectedRepositoryId = (values as unknown as { repositoryId?: string })
+      .repositoryId;
+    if (!selectedRepositoryId) {
+      message.error("Please select a repository");
+      return;
+    }
     const newTodo: Task = {
       ...values,
       status: form.getFieldValue("status") || "NOT_STARTED",
@@ -94,6 +101,13 @@ const AddTask: React.FC<{
   };
 
   const handleElaborate = async () => {
+    const { repositoryId } = form.getFieldsValue() as Partial<FormValues> & {
+      repositoryId?: string;
+    };
+    if (!repositoryId) {
+      message.error("Please select a repository");
+      return;
+    }
     setLoadingAI(true);
     try {
       const elaboratedTask = await elaborateTaskWithGroq(
@@ -243,7 +257,10 @@ const AddTask: React.FC<{
             suffixIcon={<Tag size={12} />}
           />
         </Form.Item>
-        <Form.Item name="repositoryId">
+        <Form.Item
+          name="repositoryId"
+          rules={[{ required: true, message: "Please select a repository" }]}
+        >
           <Select
             placeholder="Repository"
             options={repositories}
