@@ -5,7 +5,7 @@ import { projectsApi } from "@/api/projects.api";
 const ProjectDetails = () => {
   const { id } = useParams();
 
-  const { data: users, isLoading } = useQuery({
+  const { data: users } = useQuery({
     queryKey: ["users", id],
     queryFn: () => projectsApi.getUsers(id as string),
   });
