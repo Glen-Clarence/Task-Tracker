@@ -1,4 +1,5 @@
 import apiClient from "./_setup";
+import { UserProfile } from "./users.api";
 
 export interface Project {
   id: string;
@@ -15,6 +16,12 @@ export const projectsApi = {
   },
   getRepo: async (id: string): Promise<Project> => {
     const { data } = await apiClient.get<Project>(`/repositories/${id}`);
+    return data;
+  },
+  getUsers: async (id: string): Promise<UserProfile[]> => {
+    const { data } = await apiClient.get<UserProfile[]>(
+      `/repositories/${id}/users`
+    );
     return data;
   },
 };

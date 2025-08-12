@@ -5,7 +5,9 @@ import clsx from "clsx";
 
 const Projects: React.FC = () => {
   const { projects, isLoading } = useProjects();
+
   const navigate = useNavigate();
+
   return (
     <div className="px-4 text-white">
       <div className="flex justify-between items-center">
