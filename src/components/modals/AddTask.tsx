@@ -54,7 +54,6 @@ const AddTask: React.FC<{
       }));
     },
   });
-
   const { data: repositories, isLoading: isLoadingRepositories } = useQuery({
     queryKey: ["repositories"],
     queryFn: async () => {
@@ -65,6 +64,9 @@ const AddTask: React.FC<{
       }));
     },
   });
+
+  // Get the first repository ID for default selection
+  const firstRepositoryId = repositories?.[0]?.value;
 
   const handleSubmit = async (values: Task) => {
     // Ensure repository is selected
@@ -140,6 +142,9 @@ const AddTask: React.FC<{
       onFinish={(values) => handleSubmit(values as Task)}
       initialValues={{
         date: dayjs(), // Get today's date using dayjs
+        priority: "MEDIUM",
+        status: "IN_PROGRESS",
+        repositoryId: firstRepositoryId,
       }}
     >
       <div className="grid grid-cols-1">
@@ -239,7 +244,7 @@ const AddTask: React.FC<{
           // label="Priority"
           rules={[
             {
-              required: true,
+              required: false,
               message: "Please select a tag",
             },
           ]}

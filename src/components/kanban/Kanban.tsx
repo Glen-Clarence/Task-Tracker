@@ -1,4 +1,4 @@
-import React, { useState, DragEvent } from "react";
+import React, { useState, DragEvent, useEffect } from "react";
 import { PlusIcon, WandSparkles } from "lucide-react";
 import fire from "../../assets/fire.lottie";
 import { saveAs } from "file-saver";
@@ -529,6 +529,11 @@ const AddCard = ({ column, form, handleSubmit }: AddCardProps) => {
   form.setFieldValue("status", column);
 
   const handleElaborate = async () => {
+    const repoId = form.getFieldValue("repositoryId");
+    if (!repoId) {
+      message.error("Please select a repository");
+      return;
+    }
     setLoadingAI(true);
     try {
       const elaboratedTask = await elaborateTaskWithGroq(
@@ -552,6 +557,14 @@ const AddCard = ({ column, form, handleSubmit }: AddCardProps) => {
       }));
     },
   });
+
+  // Preselect first repository when available
+  useEffect(() => {
+    const firstRepoId = repositories?.[0]?.value;
+    if (firstRepoId && !form.getFieldValue("repositoryId")) {
+      form.setFieldValue("repositoryId", firstRepoId);
+    }
+  }, [repositories, form]);
 
   return (
     <>
@@ -641,7 +654,11 @@ const AddCard = ({ column, form, handleSubmit }: AddCardProps) => {
               <DatePicker format="YYYY-MM-DD" />
             </Form.Item>
 
-            <Form.Item name="repository" label="Repository">
+            <Form.Item
+              name="repositoryId"
+              label="Repository"
+              rules={[{ required: true, message: "Please select a repository" }]}
+            >
               <Select
                 placeholder="Select repository"
                 options={repositories}

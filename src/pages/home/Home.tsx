@@ -54,6 +54,9 @@ const Home = () => {
     },
   });
 
+  // Find the "task" tag for default selection, fallback to first tag if not found
+  const taskTagId = tags?.[0]?.value;
+
   const { data: repositories, isLoading: isLoadingRepositories } = useQuery({
     queryKey: ["repositories"],
     queryFn: async () => {
@@ -65,14 +68,17 @@ const Home = () => {
     },
   });
 
+  // Get the first repository ID for default selection
+  const firstRepositoryId = repositories?.[0]?.value;
+
   const { register, handleSubmit, control } = useForm({
     defaultValues: {
       title: "",
-      priority: "LOW",
-      status: "NOT_STARTED",
-      tagIDs: [],
+      priority: "MEDIUM",
+      status: "COMPLETED",
+      tagIDs: taskTagId ? [taskTagId] : [],
       isRecurring: false,
-      repositoryId: undefined,
+      repositoryId: firstRepositoryId,
     },
   });
 
