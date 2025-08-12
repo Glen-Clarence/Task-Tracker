@@ -9,6 +9,11 @@ export interface Project {
   updatedAt: string;
 }
 
+export interface Repository {
+  members: UserProfile[];
+  lead: UserProfile;
+}
+
 export const projectsApi = {
   getAll: async (): Promise<Project[]> => {
     const { data } = await apiClient.get<Project[]>("/repositories");
@@ -18,8 +23,8 @@ export const projectsApi = {
     const { data } = await apiClient.get<Project>(`/repositories/${id}`);
     return data;
   },
-  getUsers: async (id: string): Promise<UserProfile[]> => {
-    const { data } = await apiClient.get<UserProfile[]>(
+  getUsers: async (id: string): Promise<Repository> => {
+    const { data } = await apiClient.get<Repository>(
       `/repositories/${id}/users`
     );
     return data;
