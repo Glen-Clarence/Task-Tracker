@@ -67,6 +67,13 @@ const AddTask: React.FC<{
   });
 
   const handleSubmit = async (values: Task) => {
+    // Ensure repository is selected
+    const selectedRepositoryId = (values as unknown as { repositoryId?: string })
+      .repositoryId;
+    if (!selectedRepositoryId) {
+      message.error("Please select a repository");
+      return;
+    }
     const newTodo: Task = {
       ...values,
       status: form.getFieldValue("status") || "NOT_STARTED",
@@ -94,6 +101,13 @@ const AddTask: React.FC<{
   };
 
   const handleElaborate = async () => {
+    const { repositoryId } = form.getFieldsValue() as Partial<FormValues> & {
+      repositoryId?: string;
+    };
+    if (!repositoryId) {
+      message.error("Please select a repository");
+      return;
+    }
     setLoadingAI(true);
     try {
       const elaboratedTask = await elaborateTaskWithGroq(
@@ -163,7 +177,7 @@ const AddTask: React.FC<{
         </Form.Item>
       </div>
 
-      <div className="flex gap-2 items-center">
+      <div className="grid grid-cols-4 gap-2 items-center">
         <Form.Item
           name="priority"
           // label="Priority"
@@ -178,9 +192,9 @@ const AddTask: React.FC<{
             placeholder="Priority"
             options={priorityOptions}
             size="small"
-            style={{
-              maxWidth: "100px",
-            }}
+            // style={{
+            //   maxWidth: "100px",
+            // }}
             allowClear
             suffixIcon={<FlagTriangleRight size={12} />}
           />
@@ -199,10 +213,6 @@ const AddTask: React.FC<{
             placeholder="Status"
             options={statusOptions}
             size="small"
-            style={{
-              maxWidth: "200px",
-              minWidth: "100px",
-            }}
             allowClear
             suffixIcon={<ChartSpline size={12} />}
           />
@@ -216,7 +226,7 @@ const AddTask: React.FC<{
             format="ddd, DD"
             size="small"
             style={{
-              maxWidth: "100px",
+              width: "100%",
             }}
           />
         </Form.Item>
@@ -243,7 +253,10 @@ const AddTask: React.FC<{
             suffixIcon={<Tag size={12} />}
           />
         </Form.Item>
-        <Form.Item name="repositoryId">
+        <Form.Item
+          name="repositoryId"
+          rules={[{ required: true, message: "Please select a repository" }]}
+        >
           <Select
             placeholder="Repository"
             options={repositories}
@@ -255,6 +268,54 @@ const AddTask: React.FC<{
             }}
             allowClear
             suffixIcon={<GitBranchPlus size={12} />}
+          />
+        </Form.Item>
+        <Form.Item
+          name="timeEstimate"
+          // label="Priority"
+          rules={[
+            {
+              required: true,
+              message: "Please select a tag",
+            },
+          ]}
+        >
+          <Select
+            placeholder="Time Estimate"
+            options={[
+              {
+                value: "1",
+                label: "Less than an hour",
+              },
+              {
+                value: "2",
+                label: "Within 2 hours",
+              },
+              {
+                value: "3",
+                label: "Within 4 hours",
+              },
+              {
+                value: "4",
+                label: "Within 6 hours",
+              },
+              {
+                value: "5",
+                label: "Within 8 hours",
+              },
+              {
+                value: "5",
+                label: "More than 8 hours",
+              },
+            ]}
+            size="small"
+            style={{
+              maxWidth: "200px",
+              minWidth: "150px",
+            }}
+            loading={isLoadingTags}
+            allowClear
+            suffixIcon={<Tag size={12} />}
           />
         </Form.Item>
         <Dropdown menu={{ items: menuItems }} trigger={["click"]}>
