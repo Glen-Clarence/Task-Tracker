@@ -29,6 +29,7 @@ export interface Task {
     id: string;
     name: string;
   };
+  timeEstimate?: string;
 }
 
 export interface QuickTaskType {
@@ -50,6 +51,7 @@ export interface FormValues {
   date?: dayjs.Dayjs;
   repository?: string;
   repositoryId?: string;
+  timeEstimate?: string;
 }
 
 export interface Stats {
@@ -151,6 +153,7 @@ const useKanbanStore = create<KanbanState>((set, get) => ({
         user: task.user,
         tags: task.tags,
         repository: task.repository,
+        timeEstimate: task.timeEstimate,
       }));
 
       set({ tasks: mappedCards });
@@ -276,6 +279,7 @@ const useKanbanStore = create<KanbanState>((set, get) => ({
       status: task.status,
       updatedAt: task.updatedAt,
       userId: task.userId,
+      timeEstimate: task.timeEstimate,
     };
 
     set((state) => ({

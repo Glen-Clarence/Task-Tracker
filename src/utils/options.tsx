@@ -19,3 +19,12 @@ export const repositoryOptions = [
   { value: "mobile", label: "Mobile" },
   { value: "infra", label: "Infrastructure" },
 ];
+
+export const timeEstimateOptions = [
+  { value: "1", label: "Less than an hour" },
+  { value: "2", label: "Within 2 hours" },
+  { value: "3", label: "Within 4 hours" },
+  { value: "4", label: "Within 6 hours" },
+  { value: "5", label: "Within 8 hours" },
+  { value: "5", label: "More than 8 hours" },
+];

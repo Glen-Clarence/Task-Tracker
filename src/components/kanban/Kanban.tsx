@@ -20,7 +20,7 @@ import {
   message,
 } from "antd";
 import { Button as ShadButton } from "../ui/button";
-import { priorityOptions } from "../../utils/options";
+import { priorityOptions, timeEstimateOptions } from "../../utils/options";
 import TextArea from "antd/es/input/TextArea";
 import dayjs from "dayjs";
 import { elaborateTaskWithGroq } from "../../utils/groqTaskElaborator";
@@ -415,6 +415,7 @@ const Card = ({
   status,
   updatedAt,
   userId,
+  timeEstimate,
   handleDragStart,
   editingTaskForm,
   editingTask,
@@ -434,6 +435,7 @@ const Card = ({
     status,
     updatedAt,
     userId,
+    timeEstimate,
   };
 
   const deleteTask = useKanbanStore((state) => state.deleteTask);
@@ -592,6 +594,7 @@ const AddCard = ({ column, form, handleSubmit }: AddCardProps) => {
           initialValues={{
             priority: "MEDIUM",
             date: dayjs(), // Get today's date using dayjs
+            timeEstimate: "2",
           }}
           // disabled={editingTodo !== null}
         >
@@ -632,7 +635,7 @@ const AddCard = ({ column, form, handleSubmit }: AddCardProps) => {
             </Form.Item>
           </div>
 
-          <div className="grid xl:grid-cols-3 grid-cols-1 gap-4">
+          <div className="grid xl:grid-cols-4 grid-cols-1 gap-4">
             <Form.Item
               name="priority"
               label="Priority"
@@ -665,6 +668,19 @@ const AddCard = ({ column, form, handleSubmit }: AddCardProps) => {
                 loading={isLoadingRepositories}
                 allowClear
               />
+            </Form.Item>
+
+            <Form.Item
+              name="timeEstimate"
+              label="Time Estimate"
+              rules={[
+                {
+                  required: true,
+                  message: "Please select a time estimate",
+                },
+              ]}
+            >
+              <Select placeholder="Select time estimate" options={timeEstimateOptions} />
             </Form.Item>
           </div>
           <div className="grid xl:grid-cols-2 grid-cols-1 gap-4">
