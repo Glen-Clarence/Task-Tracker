@@ -49,6 +49,7 @@ export interface FormValues {
   employeeId?: string;
   date?: dayjs.Dayjs;
   repository?: string;
+  repositoryId?: string;
 }
 
 export interface Stats {
