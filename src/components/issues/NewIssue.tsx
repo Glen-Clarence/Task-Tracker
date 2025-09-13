@@ -4,12 +4,28 @@ import { useQuery } from "@tanstack/react-query";
 import { useIssues } from "./useIssues";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, AlertCircle, CircleDot, Play, CheckCircle2, XCircle, X, Users, Building } from "lucide-react";
+import { ArrowLeft, AlertCircle, Image as ImageIcon } from "lucide-react";
+import { LexicalComposer } from "@lexical/react/LexicalComposer";
+import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
+import { ContentEditable } from "@lexical/react/LexicalContentEditable";
+import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
+import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
+import ToolbarPlugin from "../ui/plugins/ToolbarPlugin";
+import { HeadingNode, QuoteNode } from "@lexical/rich-text";
+import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
+import { ListItemNode, ListNode } from "@lexical/list";
+import { CodeHighlightNode, CodeNode } from "@lexical/code";
+import { AutoLinkNode, LinkNode } from "@lexical/link";
+import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
+import { ListPlugin } from "@lexical/react/LexicalListPlugin";
+import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
+import { TRANSFORMERS } from "@lexical/markdown";
+import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import ExampleTheme from "../ui/themes/ExpTheme";
+import { $getRoot, EditorState } from "lexical";
 import { Issue, IssueStatus } from "@/api/issues.api";
 import { projectsApi } from "@/api/projects.api";
 import { UserProfile } from "@/api/users.api";
@@ -39,31 +55,75 @@ const NewIssue = () => {
     tagIDs: []
   });
 
+  const getInitialEditorState = (description?: string) => {
+    if (description) return description;
+    return JSON.stringify({
+      root: {
+        children: [{
+          children: [],
+          direction: null,
+          format: "",
+          indent: 0,
+          type: "paragraph",
+          version: 1
+        }],
+        direction: null,
+        format: "",
+        indent: 0,
+        type: "root",
+        version: 1
+      }
+    });
+  };
+
+  const editorConfig = (initialDescription?: string) => ({
+    namespace: 'IssueDescriptionEditor',
+    theme: ExampleTheme,
+    onError(error: Error) {
+      console.error(error);
+    },
+    editorState: getInitialEditorState(initialDescription),
+    nodes: [
+      HeadingNode,
+      ListNode,
+      ListItemNode,
+      QuoteNode,
+      CodeNode,
+      CodeHighlightNode,
+      TableNode,
+      TableCellNode,
+      TableRowNode,
+      AutoLinkNode,
+      LinkNode,
+    ],
+  });
+
+  const updateDescription = (description: string) => {
+    setFormData(prev => ({ ...prev, description }));
+  };
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedAssignees, setSelectedAssignees] = useState<UserProfile[]>([]);
   const [createMore, setCreateMore] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
-  // Fetch all repositories
   const { data: repositories = [], isLoading: loadingRepos } = useQuery({
     queryKey: ["repositories"],
     queryFn: projectsApi.getAll,
   });
 
-  // Fetch users for the selected repository
   const { data: repositoryUsers, isLoading: loadingUsers } = useQuery({
     queryKey: ["repository-users", formData.repositoryId],
     queryFn: () => projectsApi.getUsers(formData.repositoryId!),
     enabled: !!formData.repositoryId,
   });
 
-  // Available users for assignment (members + lead)
   const availableUsers = repositoryUsers
     ? [...repositoryUsers.members, repositoryUsers.lead]
     : [];
 
-  // Update assignedToIds when selectedAssignees changes
   useEffect(() => {
     setFormData(prev => ({
       ...prev,
@@ -100,16 +160,13 @@ const NewIssue = () => {
     if (!validateForm()) return;
 
     try {
-      // Create the issue data in the format expected by the API
       const issueData = {
         title: formData.title.trim(),
         description: formData.description?.trim() || undefined,
         priority: formData.priority,
         status: formData.status,
-        // Convert assignedToIds to the format expected by the backend
         assignedToIds: formData.assignedToIds || [],
         repositoryId: formData.repositoryId,
-        // Add default values for required fields
         dueDate: undefined,
         tagIDs: []
       };
@@ -117,7 +174,6 @@ const NewIssue = () => {
       await createIssue(issueData);
 
       if (createMore) {
-        // Reset form for creating another issue while keeping repository context
         setFormData(prev => ({
           ...prev,
           title: "",
@@ -131,7 +187,6 @@ const NewIssue = () => {
         setSelectedAssignees([]);
         setErrors({});
       } else {
-        // Navigate back to issues list
         navigate(-1);
       }
     } catch (error) {
@@ -141,12 +196,10 @@ const NewIssue = () => {
 
   const handleInputChange = (field: keyof CreateIssueFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
     }
 
-    // Clear assignees when repository changes
     if (field === "repositoryId") {
       setSelectedAssignees([]);
     }
@@ -167,10 +220,18 @@ const NewIssue = () => {
     setSelectedAssignees(prev => prev.filter(assignee => assignee.id !== userId));
   };
 
+  const toggleDropdown = (dropdownId: string) => {
+    setOpenDropdown(openDropdown === dropdownId ? null : dropdownId);
+  };
+
+  const selectDropdownItem = (field: keyof CreateIssueFormData, value: string) => {
+    handleInputChange(field, value);
+    setOpenDropdown(null);
+  };
+
   return (
     <div className="min-h-screen">
       <div className="max-w-6xl space-y-4">
-        {/* Header */}
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -183,15 +244,11 @@ const NewIssue = () => {
           </Button>
         </div>
 
-        {/* Title Section */}
-
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
               <Card className="bg-grey border-slate-700/50 backdrop-blur-sm shadow-2xl">
                 <div className="p-8 space-y-6">
-                  {/* Title */}
                   <div className="space-y-3">
                     <Label htmlFor="title" className="text-white text-lg font-semibold flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-blue-400"></div>
@@ -213,20 +270,18 @@ const NewIssue = () => {
                     )}
                   </div>
 
-                  {/* Description */}
                   <div className="space-y-3">
                     <Label htmlFor="description" className="text-white text-lg font-semibold flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-purple-400"></div>
                       Description
                     </Label>
-                    <Textarea
-                      id="description"
-                      placeholder="Type your description here..."
-                      value={formData.description}
-                      onChange={(e) => handleInputChange("description", e.target.value)}
-                      rows={10}
-                      className="resize-none bg-black border-slate-600 text-white placeholder:text-gray-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/20 transition-all duration-200"
-                    />
+                    <div className="editor-wrapper">
+                      <LexicalComposer initialConfig={editorConfig(formData.description)}>
+                        <LexicalEditorWrapper 
+                          updateDescription={updateDescription} 
+                        />
+                      </LexicalComposer>
+                    </div>
 
                     <div className="flex items-center justify-between pt-3">
                       <div className="flex items-center gap-3">
@@ -301,117 +356,124 @@ const NewIssue = () => {
               </Card>
             </div>
 
-            {/* Sidebar */}
+            {/* sidebar */}
             <Card className="bg-grey border-slate-700/50 backdrop-blur-sm shadow-2xl rounded-md">
               <div className="p-8 space-y-6">
-                {/* Repository */}
-                <div>
-                  <Label className="text-white text-lg font-semibold">Repository</Label>
-                  <Select
-                    value={formData.repositoryId || ""}
-                    onValueChange={(value: string) => handleInputChange("repositoryId", value)}
-                    disabled={loadingRepos}
-                  >
-                    <SelectTrigger className="bg-black border-slate-600 text-white w-full">
-                      <SelectValue placeholder="Choose a repository" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-black border-slate-700">
+
+                <div className="border-b border-gray-600 py-4 relative cursor-pointer" onClick={() => toggleDropdown("repository")}>
+                  <div className="font-semibold text-white flex justify-between hover:bg-gray-800 ">
+                    Repository <span className="text-gray-500">⚙️</span>
+                  </div>
+                  <div className="text-gray-400 mt-2">
+                    {repositories.find(r => r.id === formData.repositoryId)?.name || "No repository selected"}
+                  </div>
+                  {openDropdown === "repository" && (
+                    <div className="absolute bg-black border border-gray-600 w-full mt-2 z-10">
                       {repositories.map(repo => (
-                        <SelectItem key={repo.id} value={repo.id} className="text-white">
+                        <div key={repo.id} className="p-2 hover:bg-gray-700 cursor-pointer text-white" onClick={() => selectDropdownItem("repositoryId", repo.id)}>
                           {repo.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.repositoryId && <div className="text-red-400 text-xs mt-1">{errors.repositoryId}</div>}
-                </div>
-
-                {/* Priority */}
-                <div>
-                  <Label className="text-white text-lg font-semibold">Priority</Label>
-                  <Select
-                    value={formData.priority}
-                    onValueChange={(value: IssuePriority) => handleInputChange("priority", value)}
-                  >
-                    <SelectTrigger className="bg-black border-slate-600 text-white w-full">
-                      <SelectValue placeholder="Select priority level" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-black border-slate-700">
-                      <SelectItem value="LOW" className="text-white">Low</SelectItem>
-                      <SelectItem value="MEDIUM" className="text-white">Medium</SelectItem>
-                      <SelectItem value="HIGH" className="text-white">High</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Status */}
-                <div>
-                  <Label className="text-white text-lg font-semibold">Status</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value: IssueStatus) => handleInputChange("status", value)}
-                  >
-                    <SelectTrigger className="bg-black border-slate-600 text-white w-full">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-black border-slate-700">
-                      <SelectItem value="NOT_STARTED" className="text-white">Open</SelectItem>
-                      <SelectItem value="IN_PROGRESS" className="text-white">In Progress</SelectItem>
-                      <SelectItem value="COMPLETED" className="text-white">Completed</SelectItem>
-                      <SelectItem value="CANCELLED" className="text-white">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Assignees */}
-                <div>
-                  <Label className="text-white text-lg font-semibold">Assignees</Label>
-                  {selectedAssignees.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {selectedAssignees.map(user => (
-                        <Badge key={user.id} className="bg-slate-700 text-white rounded flex items-center gap-2">
-                          {user.name}
-                          <button type="button" onClick={() => removeAssignee(user.id)} className="text-red-400">
-                            ×
-                          </button>
-                        </Badge>
+                        </div>
                       ))}
                     </div>
                   )}
-                  {formData.repositoryId && (
-                    <Select
-                      onValueChange={(userId: string) => {
-                        const user = availableUsers.find(u => u.id === userId);
-                        if (user && !selectedAssignees.some(a => a.id === userId)) {
-                          handleAssigneeToggle(user);
-                        }
-                      }}
-                      disabled={loadingUsers || !availableUsers.length}
-                    >
-                      <SelectTrigger className="bg-black border-slate-600 text-white w-full">
-                        <SelectValue placeholder="Add team member" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-black border-slate-700">
-                        {availableUsers
-                          .filter(user => !selectedAssignees.some(a => a.id === user.id))
-                          .map(user => (
-                            <SelectItem key={user.id} value={user.id} className="text-white">
-                              {user.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                </div>
+
+                <div className="border-b border-gray-600 py-4 relative cursor-pointer" onClick={() => toggleDropdown("priority")}>
+                  <div className="font-semibold text-white flex justify-between hover:bg-gray-800">
+                    Priority <span className="text-gray-500">⚙️</span>
+                  </div>
+                  <div className="text-gray-400 mt-2">{formData.priority}</div>
+                  {openDropdown === "priority" && (
+                    <div className="absolute bg-black border border-gray-600 w-full mt-2 z-10">
+                      {["LOW", "MEDIUM", "HIGH"].map(p => (
+                        <div key={p} className="p-2 hover:bg-gray-700 cursor-pointer text-white" onClick={() => selectDropdownItem("priority", p)}>
+                          {p}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
+
+                <div className="border-b border-gray-600 py-4 relative cursor-pointer" onClick={() => toggleDropdown("status")}>
+                  <div className="font-semibold text-white flex justify-between hover:bg-gray-800">
+                    Status <span className="text-gray-500">⚙️</span>
+                  </div>
+                  <div className="text-gray-400 mt-2">{formData.status}</div>
+                  {openDropdown === "status" && (
+                    <div className="absolute bg-black border border-gray-600 w-full mt-2 z-10">
+                      {["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"].map(s => (
+                        <div key={s} className="p-2 hover:bg-gray-700 cursor-pointer text-white" onClick={() => selectDropdownItem("status", s)}>
+                          {s}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-b border-gray-600 py-4 relative cursor-pointer" onClick={() => toggleDropdown("assignees")}>
+                  <div className="font-semibold text-white flex justify-between hover:bg-gray-800">
+                    Assignees <span className="text-gray-500">⚙️</span>
+                  </div>
+                  <div className="text-gray-400 mt-2">
+                    {selectedAssignees.length > 0 ? selectedAssignees.map(u => u.name).join(", ") : "No one"}
+                  </div>
+                  {openDropdown === "assignees" && (
+                    <div className="absolute bg-black border border-gray-600 w-full mt-2 z-10 max-h-60 overflow-auto">
+                      {availableUsers.map(user => (
+                        <div key={user.id} className="p-2 hover:bg-gray-700 cursor-pointer text-white" onClick={() => handleAssigneeToggle(user)}>
+                          {user.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
               </div>
             </Card>
-
-
           </div>
         </form>
       </div>
     </div>
   );
 };
+
+function LexicalEditorWrapper({ updateDescription }: { updateDescription: (desc: string) => void }) {
+  const [editor] = useLexicalComposerContext();
+  
+  return (
+    <div className="relative">
+      <ToolbarPlugin 
+        setShowDoodle={() => {}} 
+        showDoodle={false} 
+        title="" 
+      />
+      <div className="editor-container relative bg-black border border-slate-600 rounded-md p-2 min-h-[200px] mt-1">
+        <RichTextPlugin
+          contentEditable={
+            <ContentEditable className="editor-input min-h-[150px] p-2 focus:outline-none text-white" />
+          }
+          placeholder={
+            <div className="absolute top-4 left-4 text-gray-500 pointer-events-none">
+              Describe the issue...
+            </div>
+          }
+          ErrorBoundary={LexicalErrorBoundary}
+        />
+        <OnChangePlugin
+          onChange={(editorState: EditorState) => {
+            editorState.read(() => {
+              const description = $getRoot().getTextContent();
+              updateDescription(description);
+            });
+          }}
+        />
+        <AutoFocusPlugin />
+        <ListPlugin />
+        <LinkPlugin />
+        <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
+      </div>
+    </div>
+  );
+}
 
 export default NewIssue;
