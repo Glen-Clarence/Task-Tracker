@@ -52,6 +52,7 @@ export interface FormValues {
   repository?: string;
   repositoryId?: string;
   timeEstimate?: string;
+  tags?: string[];
 }
 
 export interface Stats {
@@ -82,6 +83,7 @@ interface KanbanState {
   setTasks: (tasks: Task) => void;
   setLoading: (loading: boolean) => void;
   setEditingTask: (id: string | null) => void;
+  updateTaskLocal: (id: string, updatedTask: Task) => void;
 
   // Async actions
   fetchTasks: () => Promise<void>;
@@ -131,6 +133,12 @@ const useKanbanStore = create<KanbanState>((set, get) => ({
   setTasks: (tasks: Task) => set({ tasks: [...get().tasks, tasks] }),
   setLoading: (loading) => set({ loading }),
   setEditingTask: (id) => set({ editingTask: id }),
+  updateTaskLocal: (id: string, updatedTask: Task) => 
+    set((state) => ({
+      tasks: state.tasks.map((task) =>
+        task.id === id ? { ...task, ...updatedTask } : task
+      ),
+    })),
 
   // Async actions that interact with the API
   fetchTasks: async () => {
