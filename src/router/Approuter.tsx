@@ -9,6 +9,7 @@ import ProjectsOutlet from "./outlets/ProjectsOutlet";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 import AdminOutlet from "./outlets/AdminOutlet";
 import FoldersOutlet from "./outlets/FolderOutlet";
+import DashboardOutlet from "./outlets/DashboardOutlet";
 // import Editor from "@/components/notes/Editor";
 import Obsidian from "@/components/notes/Obsidian";
 
@@ -17,6 +18,8 @@ const ProjectDetails = lazy(
 );
 const NewIssue = lazy(() => import("../components/issues/NewIssue"));
 const Dashboard = lazy(() => import("../components/dashboard/Dashboard"));
+const CreateTask = lazy(() => import("../pages/dashboard/CreateTask"));
+const EditTask = lazy(() => import("../pages/dashboard/EditTask"));
 const LoginForm = lazy(() => import("../components/login/Login"));
 
 // Lazy load new components
@@ -35,7 +38,21 @@ export const Approuter = () => {
         },
         {
           path: "/dashboard",
-          element: <Dashboard />,
+          element: <DashboardOutlet />,
+          children: [
+            {
+              path: "/dashboard",
+              element: <Dashboard />,
+            },
+            {
+              path: "/dashboard/create-task",
+              element: <CreateTask />,
+            },
+            {
+              path: "/dashboard/edit-task/:id",
+              element: <EditTask />,
+            },
+          ],
         },
         {
           path: "/tasks",

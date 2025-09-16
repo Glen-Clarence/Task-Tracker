@@ -8,11 +8,28 @@ type Author = {
   createdAt?: string;
 };
 
+export type IssueStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+
+export const statusDisplayMap = {
+  NOT_STARTED: { label: 'Not Started', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+  IN_PROGRESS: { label: 'In Progress', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  COMPLETED: { label: 'Completed', color: 'bg-green-100 text-green-800 border-green-200' },
+  CANCELLED: { label: 'Cancelled', color: 'bg-red-100 text-red-800 border-red-200' }
+} as const;
+
+export type IssuePriority = "LOW" | "MEDIUM" | "HIGH";
+
+export interface CreateIssueData extends Omit<Issue, 'id' | 'createdAt' | 'updatedAt'> {
+  repositoryId: string;
+  assignedToIds: string[];
+  tagIDs?: string[];
+}
+
 export interface Issue {
   id: string;
   title: string;
   description?: string;
-  status: "OPEN" | "IN_PROGRESS" | "CLOSED";
+  status: IssueStatus;
   priority: "LOW" | "MEDIUM" | "HIGH";
   createdAt: string;
   updatedAt: string;
@@ -34,7 +51,7 @@ export const issuesApi = {
   create: async (
     issue: Omit<Issue, "id" | "createdAt" | "updatedAt">
   ): Promise<Issue> => {
-    const { data } = await apiClient.post<Issue>("/api/issues", issue);
+    const { data } = await apiClient.post<Issue>("/issues", issue);
     return data;
   },
   update: async ({
@@ -44,10 +61,10 @@ export const issuesApi = {
     id: string;
     updates: Partial<Issue>;
   }): Promise<Issue> => {
-    const { data } = await apiClient.patch<Issue>(`/api/issues/${id}`, updates);
+    const { data } = await apiClient.patch<Issue>(`/issues/${id}`, updates);
     return data;
   },
   delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/api/issues/${id}`);
+    await apiClient.delete(`/issues/${id}`);
   },
 };

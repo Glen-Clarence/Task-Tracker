@@ -14,7 +14,7 @@ import apiClient from "@/api/_setup";
 import { useQuery } from "@tanstack/react-query";
 import { tagsApi } from "@/api/tags.api";
 // import TextArea from "antd/es/input/TextArea";
-import { priorityOptions, statusOptions } from "@/utils/options";
+import { priorityOptions, statusOptions, timeEstimateOptions } from "@/utils/options";
 import {
   SelectContent,
   SelectValue,
@@ -54,6 +54,9 @@ const Home = () => {
     },
   });
 
+  // Find the "task" tag for default selection, fallback to first tag if not found
+  const taskTagId = tags?.[0]?.value;
+
   const { data: repositories, isLoading: isLoadingRepositories } = useQuery({
     queryKey: ["repositories"],
     queryFn: async () => {
@@ -65,16 +68,27 @@ const Home = () => {
     },
   });
 
-  const { register, handleSubmit, control } = useForm({
+  // Get the first repository ID for default selection
+  const firstRepositoryId = repositories?.[0]?.value;
+
+  const { register, handleSubmit, control, setValue } = useForm({
     defaultValues: {
       title: "",
-      priority: "LOW",
-      status: "NOT_STARTED",
-      tagIDs: [],
+      priority: "MEDIUM",
+      status: "COMPLETED",
+      tagIDs: taskTagId ? [taskTagId] : [],
       isRecurring: false,
-      repositoryId: undefined,
+      repositoryId: firstRepositoryId,
+      timeEstimate: "2",
     },
   });
+
+  // Set repository ID when repositories are loaded
+  useEffect(() => {
+    if (firstRepositoryId && !isLoadingRepositories) {
+      setValue("repositoryId", firstRepositoryId);
+    }
+  }, [firstRepositoryId, isLoadingRepositories, setValue]);
 
   const onSubmit = async (values: Task) => {
     const newTodo: Task = {
@@ -308,6 +322,34 @@ const Home = () => {
                       )}
                     />
 
+                    <Controller
+                      name="timeEstimate"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <SelectTrigger className="w-[160px] h-8 hover:bg-black/20 text-sm font-medium text-white border-none rounded-full">
+                            <SelectValue placeholder="Time Estimate" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#202020]">
+                            <SelectGroup>
+                              {timeEstimateOptions.map((option) => (
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                  className="!text-white hover:!bg-black/20 hover:!border-none  focus:!border-none"
+                                >
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+
                     <div className="ml-auto p-2 bg-white rounded-full cursor-pointer">
                       <ArrowUpToLine
                         color="#000"
@@ -329,6 +371,9 @@ const Home = () => {
                   <th className="px-4 py-3 text-left font-medium">Priority</th>
                   <th className="px-4 py-3 text-left font-medium">
                     Repository
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium">
+                    Time Estimate
                   </th>
                   <th className="px-4 py-3 text-left font-medium">
                     Description
@@ -361,12 +406,12 @@ const Home = () => {
                         className={clsx(
                           "text-[10px] px-2 py-1 rounded-full",
                           task.status === "COMPLETED" &&
-                            "bg-green-200 text-black",
+                          "bg-green-200 text-black",
                           task.status === "IN_PROGRESS" &&
-                            "bg-blue-200 text-black",
+                          "bg-blue-200 text-black",
                           task.status === "PENDING" && "bg-red-200 text-black",
                           task.status === "NOT_STARTED" &&
-                            "bg-yellow-200 text-black"
+                          "bg-yellow-200 text-black"
                         )}
                       >
                         {task.status}
@@ -377,6 +422,14 @@ const Home = () => {
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-sm">{task.repository?.name}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm">
+                        {task.timeEstimate ?
+                          timeEstimateOptions.find(opt => opt.value === task.timeEstimate)?.label || task.timeEstimate
+                          : 'Not set'
+                        }
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-sm text-gray-400 line-clamp-2 max-w-[200px]">

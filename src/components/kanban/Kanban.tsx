@@ -1,4 +1,4 @@
-import React, { useState, DragEvent } from "react";
+import React, { useState, DragEvent, useEffect } from "react";
 import { PlusIcon, WandSparkles } from "lucide-react";
 import fire from "../../assets/fire.lottie";
 import { saveAs } from "file-saver";
@@ -20,7 +20,7 @@ import {
   message,
 } from "antd";
 import { Button as ShadButton } from "../ui/button";
-import { priorityOptions } from "../../utils/options";
+import { priorityOptions, timeEstimateOptions } from "../../utils/options";
 import TextArea from "antd/es/input/TextArea";
 import dayjs from "dayjs";
 import { elaborateTaskWithGroq } from "../../utils/groqTaskElaborator";
@@ -415,6 +415,7 @@ const Card = ({
   status,
   updatedAt,
   userId,
+  timeEstimate,
   handleDragStart,
   editingTaskForm,
   editingTask,
@@ -434,6 +435,7 @@ const Card = ({
     status,
     updatedAt,
     userId,
+    timeEstimate,
   };
 
   const deleteTask = useKanbanStore((state) => state.deleteTask);
@@ -529,6 +531,11 @@ const AddCard = ({ column, form, handleSubmit }: AddCardProps) => {
   form.setFieldValue("status", column);
 
   const handleElaborate = async () => {
+    const repoId = form.getFieldValue("repositoryId");
+    if (!repoId) {
+      message.error("Please select a repository");
+      return;
+    }
     setLoadingAI(true);
     try {
       const elaboratedTask = await elaborateTaskWithGroq(
@@ -552,6 +559,14 @@ const AddCard = ({ column, form, handleSubmit }: AddCardProps) => {
       }));
     },
   });
+
+  // Preselect first repository when available
+  useEffect(() => {
+    const firstRepoId = repositories?.[0]?.value;
+    if (firstRepoId && !form.getFieldValue("repositoryId")) {
+      form.setFieldValue("repositoryId", firstRepoId);
+    }
+  }, [repositories, form]);
 
   return (
     <>
@@ -579,6 +594,7 @@ const AddCard = ({ column, form, handleSubmit }: AddCardProps) => {
           initialValues={{
             priority: "MEDIUM",
             date: dayjs(), // Get today's date using dayjs
+            timeEstimate: "2",
           }}
           // disabled={editingTodo !== null}
         >
@@ -619,7 +635,7 @@ const AddCard = ({ column, form, handleSubmit }: AddCardProps) => {
             </Form.Item>
           </div>
 
-          <div className="grid xl:grid-cols-3 grid-cols-1 gap-4">
+          <div className="grid xl:grid-cols-4 grid-cols-1 gap-4">
             <Form.Item
               name="priority"
               label="Priority"
@@ -641,13 +657,30 @@ const AddCard = ({ column, form, handleSubmit }: AddCardProps) => {
               <DatePicker format="YYYY-MM-DD" />
             </Form.Item>
 
-            <Form.Item name="repository" label="Repository">
+            <Form.Item
+              name="repositoryId"
+              label="Repository"
+              rules={[{ required: true, message: "Please select a repository" }]}
+            >
               <Select
                 placeholder="Select repository"
                 options={repositories}
                 loading={isLoadingRepositories}
                 allowClear
               />
+            </Form.Item>
+
+            <Form.Item
+              name="timeEstimate"
+              label="Time Estimate"
+              rules={[
+                {
+                  required: true,
+                  message: "Please select a time estimate",
+                },
+              ]}
+            >
+              <Select placeholder="Select time estimate" options={timeEstimateOptions} />
             </Form.Item>
           </div>
           <div className="grid xl:grid-cols-2 grid-cols-1 gap-4">

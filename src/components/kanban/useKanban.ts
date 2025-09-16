@@ -44,11 +44,23 @@ export const useKanban = () => {
   };
 
   const handleSubmit = async (values: Task) => {
+    // Ensure repositoryId exists
+    const repositoryId = (values as unknown as { repositoryId?: string })
+      .repositoryId;
+    if (!repositoryId) {
+      message.error("Please select a repository");
+      return;
+    }
+
     const newTodo: Task = {
       ...values,
       id: form.getFieldValue("id") || undefined,
       status: form.getFieldValue("status"),
       isForAWeek: false,
+      // Convert date Dayjs to string if present
+      date: (values as any)?.date?.format
+        ? (values as any).date.format("YYYY-MM-DD")
+        : values.date,
     };
     try {
       const response: AxiosResponse<Task[]> = await apiClient.post("/tasks", [
