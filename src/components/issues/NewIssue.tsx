@@ -6,29 +6,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, AlertCircle, Image as ImageIcon } from "lucide-react";
-import { LexicalComposer } from "@lexical/react/LexicalComposer";
-import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
-import { ContentEditable } from "@lexical/react/LexicalContentEditable";
-import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
-import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
-import ToolbarPlugin from "../ui/plugins/ToolbarPlugin";
+import { ArrowLeft, AlertCircle } from "lucide-react";
+import { $getRoot, EditorState } from "lexical";
+import { Issue, IssueStatus } from "@/api/issues.api";
+import { projectsApi } from "@/api/projects.api";
+import { UserProfile } from "@/api/users.api";
+import { Tag, tagsApi } from "@/api/tags.api";
+
+
+import { DescriptionEditor } from "./DescriptionEditor";
+
+// Lexical Node imports are only needed for the config, which is passed as a prop
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 import { ListItemNode, ListNode } from "@lexical/list";
 import { CodeHighlightNode, CodeNode } from "@lexical/code";
 import { AutoLinkNode, LinkNode } from "@lexical/link";
-import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
-import { ListPlugin } from "@lexical/react/LexicalListPlugin";
-import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
-import { TRANSFORMERS } from "@lexical/markdown";
-import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import ExampleTheme from "../ui/themes/ExpTheme";
-import { $getRoot, EditorState } from "lexical";
-import { Issue, IssueStatus } from "@/api/issues.api";
-import { projectsApi } from "@/api/projects.api";
-import { UserProfile } from "@/api/users.api";
+
 
 type IssuePriority = "LOW" | "MEDIUM" | "HIGH";
 
@@ -37,6 +32,31 @@ type CreateIssueFormData = Omit<Issue, "id" | "createdAt" | "updatedAt"> & {
   assignedToIds: string[];
   dueDate?: Date;
   tagIDs?: string[];
+};
+
+type SidebarDropdownProps = {
+  title: string;
+  currentValue: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+};
+
+const SidebarDropdown = ({ title, currentValue, isOpen, onToggle, children }: SidebarDropdownProps) => {
+  return (
+    <div className="border-b border-gray-600 py-2 relative">
+      <div
+        className="text-xs text-white flex justify-between hover:bg-gray-800 rounded-md pt-1 pb-1 pl-2 cursor-pointer"
+        onClick={onToggle}
+      >
+        {title} <span className="text-gray-500 pr-2">⚙️</span>
+      </div>
+      <div className="text-gray-400 text-xs mt-2 pl-2 truncate">
+        {currentValue}
+      </div>
+      {isOpen && children}
+    </div>
+  );
 };
 
 const NewIssue = () => {
@@ -101,24 +121,46 @@ const NewIssue = () => {
   const updateDescription = (description: string) => {
     setFormData(prev => ({ ...prev, description }));
   };
+  
+  // This function will be passed as a prop to the DescriptionEditor
+  const handleDescriptionChange = (editorState: EditorState) => {
+    editorState.read(() => {
+      const root = $getRoot();
+      const description = root.getTextContent();
+      updateDescription(description);
+    });
+  };
 
+  // ... All other state and hooks remain unchanged ...
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedAssignees, setSelectedAssignees] = useState<UserProfile[]>([]);
   const [createMore, setCreateMore] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [labelFilter, setLabelFilter] = useState("");
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
-  const { data: repositories = [], isLoading: loadingRepos } = useQuery({
+  const { data: repositories = [] } = useQuery({
     queryKey: ["repositories"],
     queryFn: projectsApi.getAll,
   });
 
-  const { data: repositoryUsers, isLoading: loadingUsers } = useQuery({
+  const { data: repositoryUsers } = useQuery({
     queryKey: ["repository-users", formData.repositoryId],
     queryFn: () => projectsApi.getUsers(formData.repositoryId!),
     enabled: !!formData.repositoryId,
   });
+
+  const { data: tags = [] } = useQuery<Tag[]>({
+    queryKey: ["tags"],
+    queryFn: tagsApi.getAll,
+  });
+
+  const filteredTags = tags.filter(tag =>
+  typeof tag.name === "string" &&
+  tag.name.toLowerCase().includes(labelFilter.toLowerCase())
+);
 
   const availableUsers = repositoryUsers
     ? [...repositoryUsers.members, repositoryUsers.lead]
@@ -133,32 +175,17 @@ const NewIssue = () => {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-
-    if (!formData.title.trim()) {
-      newErrors.title = "Title is required";
-    }
-
-    if (formData.title.trim().length < 2) {
-      newErrors.title = "Title must be at least 2 characters";
-    }
-
-    if (!formData.repositoryId) {
-      newErrors.repositoryId = "Repository is required";
-    }
-
-    if (formData.description && formData.description.trim().length < 2) {
-      newErrors.description = "Description must be at least 2 characters";
-    }
-
+    if (!formData.title.trim()) { newErrors.title = "Title is required"; }
+    if (formData.title.trim().length < 2) { newErrors.title = "Title must be at least 2 characters"; }
+    if (!formData.repositoryId) { newErrors.repositoryId = "Repository is required"; }
+    if (formData.description && formData.description.trim().length < 2) { newErrors.description = "Description must be at least 2 characters"; }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!validateForm()) return;
-
     try {
       const issueData = {
         title: formData.title.trim(),
@@ -168,11 +195,9 @@ const NewIssue = () => {
         assignedToIds: formData.assignedToIds || [],
         repositoryId: formData.repositoryId,
         dueDate: undefined,
-        tagIDs: []
+        tagIDs: formData.tagIDs || []
       };
-
       await createIssue(issueData);
-
       if (createMore) {
         setFormData(prev => ({
           ...prev,
@@ -196,13 +221,8 @@ const NewIssue = () => {
 
   const handleInputChange = (field: keyof CreateIssueFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: "" }));
-    }
-
-    if (field === "repositoryId") {
-      setSelectedAssignees([]);
-    }
+    if (errors[field]) { setErrors(prev => ({ ...prev, [field]: "" })); }
+    if (field === "repositoryId") { setSelectedAssignees([]); }
   };
 
   const handleAssigneeToggle = (user: UserProfile) => {
@@ -216,8 +236,13 @@ const NewIssue = () => {
     });
   };
 
-  const removeAssignee = (userId: string) => {
-    setSelectedAssignees(prev => prev.filter(assignee => assignee.id !== userId));
+  const handleTagToggle = (tagId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      tagIDs: prev.tagIDs?.includes(tagId)
+        ? prev.tagIDs.filter((id) => id !== tagId)
+        : [...(prev.tagIDs || []), tagId],
+    }));
   };
 
   const toggleDropdown = (dropdownId: string) => {
@@ -229,26 +254,37 @@ const NewIssue = () => {
     setOpenDropdown(null);
   };
 
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        setOpenDropdown(null);
+      }
+    }
+    if (openDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [openDropdown]);
+
   return (
     <div className="min-h-screen">
       <div className="max-w-6xl space-y-4">
         <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(-1)}
-            className="text-gray-300 hover:text-white hover:bg-black/10 transition-all duration-200"
-          >
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="text-gray-300 hover:text-white hover:bg-black/10 transition-all duration-200">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Issues
           </Button>
         </div>
-
+        
         <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
-              <Card className="bg-grey border-slate-700/50 backdrop-blur-sm shadow-2xl">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div className="lg:col-span-3">
+              <Card className="bg-grey border-0 backdrop-blur-sm flex flex-col">
+                {/* Card Main Content */}
                 <div className="p-8 space-y-6">
+                  {/* --- Title Section --- */}
                   <div className="space-y-3">
                     <Label htmlFor="title" className="text-white text-lg font-semibold flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-blue-400"></div>
@@ -259,8 +295,7 @@ const NewIssue = () => {
                       placeholder="Title"
                       value={formData.title}
                       onChange={(e) => handleInputChange("title", e.target.value)}
-                      className={`bg-black border-slate-600 text-white placeholder:text-gray-400 text-lg py-3 px-4 focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20 transition-all duration-200 ${errors.title ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
-                        }`}
+                      className={`bg-black border-slate-600 text-white placeholder:text-gray-400 text-lg py-3 px-4 focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20 transition-all duration-200 ${errors.title ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""}`}
                     />
                     {errors.title && (
                       <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 p-3 rounded-lg border border-red-500/20">
@@ -269,211 +304,173 @@ const NewIssue = () => {
                       </div>
                     )}
                   </div>
-
+                  
+                  {/* --- NEW Description Section --- */}
                   <div className="space-y-3">
-                    <Label htmlFor="description" className="text-white text-lg font-semibold flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-purple-400"></div>
-                      Description
+                    <Label className="text-white text-lg font-semibold flex items-center gap-2">
+                       <div className="w-2 h-2 rounded-full bg-purple-400"></div>
+                       Description
                     </Label>
-                    <div className="editor-wrapper">
-                      <LexicalComposer initialConfig={editorConfig(formData.description)}>
-                        <LexicalEditorWrapper 
-                          updateDescription={updateDescription} 
-                        />
-                      </LexicalComposer>
-                    </div>
+                    <DescriptionEditor 
+                      initialConfig={editorConfig(formData.description)}
+                      onChange={handleDescriptionChange}
+                    />
+                  </div>
+                </div>
 
-                    <div className="flex items-center justify-between pt-3">
-                      <div className="flex items-center gap-3">
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          className="hidden"
-                          multiple
-                          onChange={(e) => {
-                            const files = Array.from(e.target.files || []);
-                            setAttachments(files);
-                          }}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="text-gray-200 text-sm"
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          📎 Click to Add Files.
-                        </Button>
-                        {attachments.length > 0 && (
-                          <div className="text-xs text-gray-400">
-                            Selected {attachments.length} file{attachments.length > 1 ? "s" : ""}: {attachments
-                              .slice(0, 3)
-                              .map((f) => f.name)
-                              .join(", ")}{attachments.length > 3 ? " + more" : ""}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            id="create-more"
-                            checked={createMore}
-                            onChange={(e) => setCreateMore(e.target.checked)}
-                            className="w-4 h-4 text-blue-600 bg-black border-slate-600 rounded focus:ring-blue-500 focus:ring-2"
-                          />
-                          <Label htmlFor="create-more" className="text-sm text-gray-300">
-                            Create more
-                          </Label>
+                {/* --- NEW Card Footer for Buttons --- */}
+                <div className="flex items-center justify-between p-4  mt-auto">
+                  <div className="flex items-center gap-3">
+                    <input ref={fileInputRef} type="file" className="hidden" multiple onChange={(e) => { const files = Array.from(e.target.files || []); setAttachments(files); }} />
+                    <Button type="button" variant="ghost" className="text-gray-400 text-sm hover:text-black" onClick={() => fileInputRef.current?.click()}>
+                      📎 Attach files
+                    </Button>
+                     {attachments.length > 0 && (
+                        <div className="text-xs text-gray-400">
+                           {attachments.length} file(s) selected
                         </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => navigate(-1)}
-                          disabled={isCreating}
-                          className="border-slate-600 text-black-800 hover:text-white hover:bg-black/50"
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="submit"
-                          disabled={isCreating}
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          {isCreating ? (
-                            <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                              Creating...
-                            </div>
-                          ) : (
-                            "Create"
-                          )}
-                        </Button>
-                      </div>
+                      )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" id="create-more" checked={createMore} onChange={(e) => setCreateMore(e.target.checked)} className="w-4 h-4 text-blue-600 bg-black border-slate-600 rounded focus:ring-blue-500 focus:ring-2" />
+                      <Label htmlFor="create-more" className="text-sm text-gray-300">Create more</Label>
                     </div>
+                    <Button type="button" variant="outline" onClick={() => navigate(-1)} disabled={isCreating} className="border-slate-600 bg-black text-gray-300 hover:text-white hover:bg-slate-800">
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={isCreating} className="bg-green-600 hover:bg-green-700 text-white">
+                      {isCreating ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Creating...
+                        </div>
+                      ) : (
+                        "Create"
+                      )}
+                    </Button>
                   </div>
                 </div>
               </Card>
             </div>
 
-            {/* sidebar */}
-            <Card className="bg-grey border-slate-700/50 backdrop-blur-sm shadow-2xl rounded-md">
-              <div className="p-8 space-y-6">
-
-                <div className="border-b border-gray-600 py-4 relative cursor-pointer" onClick={() => toggleDropdown("repository")}>
-                  <div className="font-semibold text-white flex justify-between hover:bg-gray-800 ">
-                    Repository <span className="text-gray-500">⚙️</span>
-                  </div>
-                  <div className="text-gray-400 mt-2">
-                    {repositories.find(r => r.id === formData.repositoryId)?.name || "No repository selected"}
-                  </div>
-                  {openDropdown === "repository" && (
-                    <div className="absolute bg-black border border-gray-600 w-full mt-2 z-10">
-                      {repositories.map(repo => (
-                        <div key={repo.id} className="p-2 hover:bg-gray-700 cursor-pointer text-white" onClick={() => selectDropdownItem("repositoryId", repo.id)}>
-                          {repo.name}
-                        </div>
-                      ))}
+            {/* --- Sidebar --- */}
+            <div className="lg:col-span-1">
+              <Card ref={sidebarRef} className="bg-grey border-0 backdrop-blur-sm rounded-md">
+                <div className="p-2 space-y-2">
+                  <SidebarDropdown
+                    title="Repository"
+                    isOpen={openDropdown === 'repository'}
+                    onToggle={() => toggleDropdown('repository')}
+                    currentValue={repositories.find(r => r.id === formData.repositoryId)?.name || "No repository selected"}
+                  >
+                    <div className="absolute bg-black border border-slate-700 w-full mt-1 z-10 rounded-md shadow-lg">
+                      <div className="max-h-60 overflow-y-auto">
+                        {repositories.map(repo => (
+                          <div
+                            key={repo.id}
+                            className="p-2 text-xs text-white hover:bg-slate-800 cursor-pointer border-b border-slate-800 last:border-b-0"
+                            onClick={(e) => { e.stopPropagation(); selectDropdownItem("repositoryId", repo.id); }}
+                          >
+                            {repo.name}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                </div>
+                  </SidebarDropdown>
 
-                <div className="border-b border-gray-600 py-4 relative cursor-pointer" onClick={() => toggleDropdown("priority")}>
-                  <div className="font-semibold text-white flex justify-between hover:bg-gray-800">
-                    Priority <span className="text-gray-500">⚙️</span>
-                  </div>
-                  <div className="text-gray-400 mt-2">{formData.priority}</div>
-                  {openDropdown === "priority" && (
-                    <div className="absolute bg-black border border-gray-600 w-full mt-2 z-10">
-                      {["LOW", "MEDIUM", "HIGH"].map(p => (
-                        <div key={p} className="p-2 hover:bg-gray-700 cursor-pointer text-white" onClick={() => selectDropdownItem("priority", p)}>
-                          {p}
-                        </div>
-                      ))}
+                  <SidebarDropdown
+                    title="Priority"
+                    isOpen={openDropdown === 'priority'}
+                    onToggle={() => toggleDropdown('priority')}
+                    currentValue={formData.priority || "No priority selected"}
+                  >
+                     <div className="absolute bg-black border border-slate-700 w-full mt-1 z-10 rounded-md shadow-lg">
+                      <div className="max-h-60 overflow-y-auto">
+                        {["LOW", "MEDIUM", "HIGH"].map(p => (
+                          <div
+                            key={p}
+                            className="p-2 text-xs text-white hover:bg-slate-800 cursor-pointer border-b border-slate-800 last:border-b-0"
+                            onClick={(e) => { e.stopPropagation(); selectDropdownItem("priority", p); }}
+                          >
+                            {p}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                </div>
-
-                <div className="border-b border-gray-600 py-4 relative cursor-pointer" onClick={() => toggleDropdown("status")}>
-                  <div className="font-semibold text-white flex justify-between hover:bg-gray-800">
-                    Status <span className="text-gray-500">⚙️</span>
-                  </div>
-                  <div className="text-gray-400 mt-2">{formData.status}</div>
-                  {openDropdown === "status" && (
-                    <div className="absolute bg-black border border-gray-600 w-full mt-2 z-10">
-                      {["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"].map(s => (
-                        <div key={s} className="p-2 hover:bg-gray-700 cursor-pointer text-white" onClick={() => selectDropdownItem("status", s)}>
-                          {s}
-                        </div>
-                      ))}
+                  </SidebarDropdown>
+                  
+                   <SidebarDropdown
+                    title="Status"
+                    isOpen={openDropdown === 'status'}
+                    onToggle={() => toggleDropdown('status')}
+                    currentValue={formData.status || "No status selected"}
+                  >
+                     <div className="absolute bg-black border border-slate-700 w-full mt-1 z-10 rounded-md shadow-lg">
+                      <div className="max-h-60 overflow-y-auto">
+                        {["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"].map(s => (
+                          <div
+                            key={s}
+                            className="p-2 text-xs text-white hover:bg-slate-800 cursor-pointer border-b border-slate-800 last:border-b-0"
+                            onClick={(e) => { e.stopPropagation(); selectDropdownItem("status", s); }}
+                          >
+                            {s}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                </div>
+                  </SidebarDropdown>
 
-                <div className="border-b border-gray-600 py-4 relative cursor-pointer" onClick={() => toggleDropdown("assignees")}>
-                  <div className="font-semibold text-white flex justify-between hover:bg-gray-800">
-                    Assignees <span className="text-gray-500">⚙️</span>
-                  </div>
-                  <div className="text-gray-400 mt-2">
-                    {selectedAssignees.length > 0 ? selectedAssignees.map(u => u.name).join(", ") : "No one"}
-                  </div>
-                  {openDropdown === "assignees" && (
-                    <div className="absolute bg-black border border-gray-600 w-full mt-2 z-10 max-h-60 overflow-auto">
-                      {availableUsers.map(user => (
-                        <div key={user.id} className="p-2 hover:bg-gray-700 cursor-pointer text-white" onClick={() => handleAssigneeToggle(user)}>
-                          {user.name}
-                        </div>
-                      ))}
+                  <SidebarDropdown
+                    title="Labels"
+                    isOpen={openDropdown === 'tags'}
+                    onToggle={() => toggleDropdown('tags')}
+                    currentValue={formData.tagIDs?.length > 0 ? tags.filter(tag => formData.tagIDs.includes(tag.id)).map(tag => tag.name).join(", ") : "No labels selected"}
+                  >
+                    <div className="absolute bg-black border border-slate-700 w-full mt-1 z-10 rounded-md shadow-lg">
+                      <div className="bg-black p-2 border-b border-slate-700">
+                        <Input type="text" placeholder="Filter labels" value={labelFilter} onChange={(e) => setLabelFilter(e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-[#0d1117] border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" />
+                      </div>
+                      <div className="max-h-60 overflow-y-auto">
+                        {filteredTags.map(tag => (
+                          <div key={tag.id} className="text-white flex items-start gap-2 p-2 border-b border-slate-800 last:border-b-0 hover:bg-slate-800 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleTagToggle(tag.id); }}>
+                            <input type="checkbox" readOnly checked={formData.tagIDs?.includes(tag.id)} className="flex-shrink-0 mt-0.5 h-4 w-4 bg-transparent border-slate-600 rounded" />
+                            <div className="flex-shrink-0 mt-0.5 h-4 w-4 rounded-full" style={{ backgroundColor: tag.color }}></div>
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-xs leading-tight">{tag.name}</span>
+                              {tag.description && <span className="text-xs text-gray-400">{tag.description}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                </div>
+                  </SidebarDropdown>
 
-              </div>
-            </Card>
+                  <SidebarDropdown
+                    title="Assignees"
+                    isOpen={openDropdown === 'assignees'}
+                    onToggle={() => toggleDropdown('assignees')}
+                    currentValue={selectedAssignees.length > 0 ? selectedAssignees.map(u => u.name).join(", ") : "No one assigned"}
+                  >
+                    <div className="absolute bg-black border border-slate-700 w-full mt-1 z-10 rounded-md shadow-lg">
+                      <div className="max-h-60 overflow-y-auto">
+                        {availableUsers.map(user => (
+                          <div key={user.id} className="text-white text-xs flex items-center gap-3 p-2 border-b border-slate-800 last:border-b-0 hover:bg-slate-800 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleAssigneeToggle(user); }}>
+                            <input type="checkbox" readOnly checked={selectedAssignees.some(assignee => assignee.id === user.id)} className="flex-shrink-0 h-4 w-4 bg-transparent border-slate-600 rounded" />
+                            <span>{user.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </SidebarDropdown>
+                </div>
+              </Card>
+            </div>
           </div>
         </form>
       </div>
     </div>
   );
 };
-
-function LexicalEditorWrapper({ updateDescription }: { updateDescription: (desc: string) => void }) {
-  const [editor] = useLexicalComposerContext();
-  
-  return (
-    <div className="relative">
-      <ToolbarPlugin 
-        setShowDoodle={() => {}} 
-        showDoodle={false} 
-        title="" 
-      />
-      <div className="editor-container relative bg-black border border-slate-600 rounded-md p-2 min-h-[200px] mt-1">
-        <RichTextPlugin
-          contentEditable={
-            <ContentEditable className="editor-input min-h-[150px] p-2 focus:outline-none text-white" />
-          }
-          placeholder={
-            <div className="absolute top-4 left-4 text-gray-500 pointer-events-none">
-              Describe the issue...
-            </div>
-          }
-          ErrorBoundary={LexicalErrorBoundary}
-        />
-        <OnChangePlugin
-          onChange={(editorState: EditorState) => {
-            editorState.read(() => {
-              const description = $getRoot().getTextContent();
-              updateDescription(description);
-            });
-          }}
-        />
-        <AutoFocusPlugin />
-        <ListPlugin />
-        <LinkPlugin />
-        <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
-      </div>
-    </div>
-  );
-}
 
 export default NewIssue;

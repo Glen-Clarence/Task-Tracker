@@ -33,8 +33,7 @@ const Issues = () => {
     setActiveFilter,
     setSearchQuery,
     setSortBy,
-    selectedIssue,
-    setSelectedIssue
+    selectedIssue
   } = useIssuesStore();
 
   // Process issues with filters and sorting
@@ -196,7 +195,10 @@ const Issues = () => {
               key={issue.id}
               className={`p-4 border-b border-gray-700 last:border-b-0 hover:bg-gray-800/50 transition-colors cursor-pointer ${selectedIssue === issue.id ? "bg-blue-900/20" : ""
                 }`}
-              onClick={() => setSelectedIssue(selectedIssue === issue.id ? null : issue.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/issues/${issue.id}`);
+              }}
             >
               <div className="flex items-start gap-3">
                 <div className="mt-1">
