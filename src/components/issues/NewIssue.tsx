@@ -72,7 +72,7 @@ const NewIssue = () => {
     repositoryId: repositoryId || "",
     assignedToIds: [],
     dueDate: undefined,
-    tagIDs: []
+    tagIDs: [] // Initialize as empty array
   });
 
   const getInitialEditorState = (description?: string) => {
@@ -425,20 +425,46 @@ const NewIssue = () => {
                     title="Labels"
                     isOpen={openDropdown === 'tags'}
                     onToggle={() => toggleDropdown('tags')}
-                    currentValue={formData.tagIDs?.length > 0 ? tags.filter(tag => formData.tagIDs.includes(tag.id)).map(tag => tag.name).join(", ") : "No labels selected"}
+                    currentValue={formData.tagIDs && formData.tagIDs.length > 0 
+                      ? tags.filter(tag => formData.tagIDs?.includes(tag.id)).map(tag => tag.name).join(", ") 
+                      : "No labels selected"}
                   >
                     <div className="absolute bg-black border border-slate-700 w-full mt-1 z-10 rounded-md shadow-lg">
                       <div className="bg-black p-2 border-b border-slate-700">
-                        <Input type="text" placeholder="Filter labels" value={labelFilter} onChange={(e) => setLabelFilter(e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-[#0d1117] border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" />
+                        <Input 
+                          type="text" 
+                          placeholder="Filter labels" 
+                          value={labelFilter} 
+                          onChange={(e) => setLabelFilter(e.target.value)} 
+                          onClick={(e) => e.stopPropagation()} 
+                          className="bg-[#0d1117] border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
+                        />
                       </div>
                       <div className="max-h-60 overflow-y-auto">
                         {filteredTags.map(tag => (
-                          <div key={tag.id} className="text-white flex items-start gap-2 p-2 border-b border-slate-800 last:border-b-0 hover:bg-slate-800 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleTagToggle(tag.id); }}>
-                            <input type="checkbox" readOnly checked={formData.tagIDs?.includes(tag.id)} className="flex-shrink-0 mt-0.5 h-4 w-4 bg-transparent border-slate-600 rounded" />
-                            <div className="flex-shrink-0 mt-0.5 h-4 w-4 rounded-full" style={{ backgroundColor: tag.color }}></div>
+                          <div 
+                            key={tag.id} 
+                            className="text-white flex items-start gap-2 p-2 border-b border-slate-800 last:border-b-0 hover:bg-slate-800 cursor-pointer" 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              handleTagToggle(tag.id); 
+                            }}
+                          >
+                            <input 
+                              type="checkbox" 
+                              readOnly 
+                              checked={formData.tagIDs?.includes(tag.id) || false} 
+                              className="flex-shrink-0 mt-0.5 h-4 w-4 bg-transparent border-slate-600 rounded" 
+                            />
+                            <div 
+                              className="flex-shrink-0 mt-0.5 h-4 w-4 rounded-full" 
+                              style={{ backgroundColor: tag.color || '#6b7280' }}
+                            ></div>
                             <div className="flex flex-col">
                               <span className="font-semibold text-xs leading-tight">{tag.name}</span>
-                              {tag.description && <span className="text-xs text-gray-400">{tag.description}</span>}
+                              {tag.description && (
+                                <span className="text-xs text-gray-400">{tag.description}</span>
+                              )}
                             </div>
                           </div>
                         ))}

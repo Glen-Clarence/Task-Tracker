@@ -1,7 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, QueryFilters } from "@tanstack/react-query";
 import { useParams } from "react-router";
 import { Issue, issuesApi, CreateIssueData, IssueStatus, IssuePriority } from "../../api/issues.api";
 import { projectsApi } from "@/api/projects.api";
+
+interface UpdateIssueParams {
+  issueId: string;
+  updates: Partial<Omit<CreateIssueData, 'repositoryId'>>;
+}
 
 export const useIssues = () => {
   const queryClient = useQueryClient();
@@ -43,10 +48,10 @@ export const useIssues = () => {
 
   // Update mutation
 const updateMutation = useMutation({
-  mutationFn: ({ issueId, updates }) =>
+  mutationFn: ({ issueId, updates }: UpdateIssueParams) =>
     issuesApi.update({ id: issueId, updates }),
-  onMutate: async ({ issueId, updates }) => {
-    await queryClient.cancelQueries(["issues", id]);
+  onMutate: async ({ issueId, updates }: UpdateIssueParams) => {
+    await queryClient.cancelQueries(["issues", id] as QueryFilters);
     const previousIssues = queryClient.getQueryData<Issue[]>(["issues", id]);
     queryClient.setQueryData<Issue[]>(["issues", id], (oldData = []) =>
       oldData.map((issue) =>
@@ -59,20 +64,28 @@ const updateMutation = useMutation({
     queryClient.setQueryData(["issues", id], context.previousIssues);
   },
   onSettled: () => {
-    queryClient.invalidateQueries(["issues", id]);
+    queryClient.invalidateQueries({ queryKey: ["issues", id] });
   },
 });
 
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: (issueId: string) => issuesApi.delete(issueId),
-    onSuccess: (_, deletedId) => {
-      queryClient.setQueryData(["issues", id], (oldData: Issue[] = []) =>
-        oldData.filter((issue: Issue) => issue.id !== deletedId) // <-- typed issue
+    onMutate: async (issueId: string) => {
+      await queryClient.cancelQueries(["issues", id] as QueryFilters);
+      const previousIssues = queryClient.getQueryData<Issue[]>(["issues", id]);
+      queryClient.setQueryData<Issue[]>(["issues", id], (oldData = []) =>
+        oldData.filter((issue) => issue.id !== issueId)
       );
+      return { previousIssues };
     },
-    onError: (error) => {
-      console.error("Failed to delete issue:", error);
+    onError: (_err: Error, _issueId: string, context: { previousIssues: Issue[] | undefined } | undefined) => {
+      if (context?.previousIssues) {
+        queryClient.setQueryData(["issues", id], context.previousIssues);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["issues", id] });
     },
   });
 

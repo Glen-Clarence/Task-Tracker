@@ -113,9 +113,11 @@ const EditTaskForm: React.FC<EditTaskFormProps> = ({ task }) => {
       } else {
         message.error("Failed to update task");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating task:", error);
-      console.error("Error details:", error.response?.data);
+      if (error?.response?.data) {
+        console.error("Error details:", error.response.data);
+      }
       message.error("An error occurred while updating the task");
     }
   };

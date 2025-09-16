@@ -17,6 +17,14 @@ export const statusDisplayMap = {
   CANCELLED: { label: 'Cancelled', color: 'bg-red-100 text-red-800 border-red-200' }
 } as const;
 
+export type IssuePriority = "LOW" | "MEDIUM" | "HIGH";
+
+export interface CreateIssueData extends Omit<Issue, 'id' | 'createdAt' | 'updatedAt'> {
+  repositoryId: string;
+  assignedToIds: string[];
+  tagIDs?: string[];
+}
+
 export interface Issue {
   id: string;
   title: string;
