@@ -286,8 +286,8 @@ const NewIssue = () => {
                 <div className="p-8 space-y-6">
                   {/* --- Title Section --- */}
                   <div className="space-y-3">
-                    <Label htmlFor="title" className="text-white text-lg font-semibold flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                    <Label htmlFor="title" className="text-white text-sm font-semibold flex items-center gap-2">
+                      {/* <div className="w-2 h-2 rounded-full bg-blue-400"></div> */}
                       Issue Title *
                     </Label>
                     <Input
@@ -307,9 +307,9 @@ const NewIssue = () => {
                   
                   {/* --- NEW Description Section --- */}
                   <div className="space-y-3">
-                    <Label className="text-white text-lg font-semibold flex items-center gap-2">
-                       <div className="w-2 h-2 rounded-full bg-purple-400"></div>
-                       Description
+                    <Label className="text-white text-sm font-semibold flex items-center gap-2">
+                       {/* <div className="w-2 h-2 rounded-full bg-purple-400"></div> */}
+                       Description *
                     </Label>
                     <DescriptionEditor 
                       initialConfig={editorConfig(formData.description)}
@@ -437,7 +437,7 @@ const NewIssue = () => {
                           value={labelFilter} 
                           onChange={(e) => setLabelFilter(e.target.value)} 
                           onClick={(e) => e.stopPropagation()} 
-                          className="bg-[#0d1117] border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
+                          className="bg-black border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
                         />
                       </div>
                       <div className="max-h-60 overflow-y-auto">
@@ -456,10 +456,6 @@ const NewIssue = () => {
                               checked={formData.tagIDs?.includes(tag.id) || false} 
                               className="flex-shrink-0 mt-0.5 h-4 w-4 bg-transparent border-slate-600 rounded" 
                             />
-                            <div 
-                              className="flex-shrink-0 mt-0.5 h-4 w-4 rounded-full" 
-                              style={{ backgroundColor: tag.color || '#6b7280' }}
-                            ></div>
                             <div className="flex flex-col">
                               <span className="font-semibold text-xs leading-tight">{tag.name}</span>
                               {tag.description && (

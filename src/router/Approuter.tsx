@@ -25,6 +25,7 @@ const LoginForm = lazy(() => import("../components/login/Login"));
 // Lazy load new components
 const Notes = lazy(() => import("../components/notes/Notes"));
 const Issues = lazy(() => import("../components/issues/Issues"));
+const IssueDetail = lazy(() => import("../components/issues/IssueDetail"));
 
 export const Approuter = () => {
   const router = createBrowserRouter([
@@ -102,6 +103,10 @@ export const Approuter = () => {
             {
               path: "/issues/new",
               element: <NewIssue />,
+            },
+            {
+              path: "/issues/:id",
+              element: <IssueDetail />,
             },
           ],
         },

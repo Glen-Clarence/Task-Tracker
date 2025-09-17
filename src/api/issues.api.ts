@@ -1,4 +1,8 @@
 import apiClient from "./_setup";
+import { UserProfile } from "./users.api";
+import { Tag } from "./tags.api";
+
+// --- Shared Types ---
 
 type Author = {
   id?: string;
@@ -11,20 +15,15 @@ type Author = {
 export type IssueStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
 export const statusDisplayMap = {
-  NOT_STARTED: { label: 'Not Started', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-  IN_PROGRESS: { label: 'In Progress', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-  COMPLETED: { label: 'Completed', color: 'bg-green-100 text-green-800 border-green-200' },
-  CANCELLED: { label: 'Cancelled', color: 'bg-red-100 text-red-800 border-red-200' }
+  NOT_STARTED: { label: 'Not Started', color: 'bg-blue-500' },
+  IN_PROGRESS: { label: 'In Progress', color: 'bg-yellow-500' },
+  COMPLETED: { label: 'Completed', color: 'bg-green-500' },
+  CANCELLED: { label: 'Cancelled', color: 'bg-red-500' }
 } as const;
 
 export type IssuePriority = "LOW" | "MEDIUM" | "HIGH";
 
-export interface CreateIssueData extends Omit<Issue, 'id' | 'createdAt' | 'updatedAt'> {
-  repositoryId: string;
-  assignedToIds: string[];
-  tagIDs?: string[];
-}
-
+// --- Type for Issue Lists (Simpler) ---
 export interface Issue {
   id: string;
   title: string;
@@ -33,23 +32,46 @@ export interface Issue {
   priority: "LOW" | "MEDIUM" | "HIGH";
   createdAt: string;
   updatedAt: string;
-  assignedTo?: string;
-  labels?: string[];
   createdBy?: Author;
+  assignedToIds?: string[]; 
+  tagIDs?: string[];
 }
 
+// --- Type for a Single, Detailed Issue (Richer) ---
+interface Comment {
+  id: string;
+  content: string;
+  user: {
+    id: string;
+    name?: string;
+    picture?: string;
+  };
+  createdAt: string;
+}
+
+export interface IssueDetailData extends Omit<Issue, 'assignedToIds' | 'tagIDs'> {
+  repository: {
+    id: string;
+    name: string;
+  };
+  assignedTo: UserProfile[];
+  tags: Tag[];
+  comments: Comment[];
+}
+
+// --- API Functions ---
 export const issuesApi = {
-  getAll: async (id?: string): Promise<Issue[]> => {
-    const params = id
-      ? {
-          repositoryId: id,
-        }
-      : {};
-    const { data } = await apiClient.get<Issue[]>(`/issues`, params);
+  getAll: async (repositoryId?: string): Promise<Issue[]> => {
+    const params = repositoryId ? { repositoryId } : {};
+    const { data } = await apiClient.get<Issue[]>("/issues", { params });
+    return data;
+  },
+  getById: async (id: string): Promise<IssueDetailData> => {
+    const { data } = await apiClient.get<IssueDetailData>(`/issues/${id}`);
     return data;
   },
   create: async (
-    issue: Omit<Issue, "id" | "createdAt" | "updatedAt">
+    issue: Omit<Issue, "id" | "createdAt" | "updatedAt"> & { repositoryId: string }
   ): Promise<Issue> => {
     const { data } = await apiClient.post<Issue>("/issues", issue);
     return data;
@@ -61,7 +83,7 @@ export const issuesApi = {
     id: string;
     updates: Partial<Issue>;
   }): Promise<Issue> => {
-    const { data } = await apiClient.patch<Issue>(`/issues/${id}`, updates);
+    const { data } = await apiClient.put<Issue>(`/issues/${id}`, updates);
     return data;
   },
   delete: async (id: string): Promise<void> => {
