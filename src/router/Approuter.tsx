@@ -26,6 +26,7 @@ const LoginForm = lazy(() => import("../components/login/Login"));
 const Notes = lazy(() => import("../components/notes/Notes"));
 const Issues = lazy(() => import("../components/issues/Issues"));
 const IssueDetail = lazy(() => import("../components/issues/IssueDetail"));
+// const ChatPage = lazy(() => import("../pages/chat/ChatPage"));
 
 export const Approuter = () => {
   const router = createBrowserRouter([
@@ -130,6 +131,10 @@ export const Approuter = () => {
       path: "/login",
       element: <LoginForm />,
     },
+    // {
+    //       path: "/chat",
+    //       element: <ChatPage />,
+    //     },
   ]);
   return (
     <Suspense fallback={<div>Loading...</div>}>

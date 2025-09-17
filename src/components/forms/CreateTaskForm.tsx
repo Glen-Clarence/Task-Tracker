@@ -110,7 +110,6 @@ const CreateTaskForm: React.FC = () => {
     };
 
     const onSubmit = async (data: TaskFormData) => {
-        // Basic validation
         if (!data.title?.trim()) {
             message.error("Title is required");
             return;
@@ -130,7 +129,7 @@ const CreateTaskForm: React.FC = () => {
             ...data,
             isForAWeek: false,
             tagIDs: data.tags || [],
-            tags: undefined, // Remove tags property to avoid type conflict
+            tags: undefined,
         };
 
         try {
@@ -168,6 +167,7 @@ const CreateTaskForm: React.FC = () => {
         <Card className="bg-[#1a1a1a] border-gray-800 text-white">
             <CardContent>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+
                     {/* Title Section */}
                     <div className="space-y-2">
                         <Label htmlFor="title" className="text-sm font-medium text-gray-200">
@@ -222,36 +222,34 @@ const CreateTaskForm: React.FC = () => {
 
                     {/* Task Properties Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
                         {/* Priority */}
                         <div className="space-y-2">
                             <Label className="text-sm font-medium text-gray-200 flex items-center gap-2">
                                 <Flag className="h-4 w-4" />
                                 Priority
                             </Label>
-                            <Select onValueChange={(value) => setValue("priority", value as any)} defaultValue="MEDIUM">
+                            <Select
+                                value={watch("priority")}
+                                onValueChange={(value) => setValue("priority", value as any)}
+                            >
                                 <SelectTrigger className="bg-[#1a1a1a] border-gray-700 text-white">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[#1a1a1a] border-gray-700">
                                     <SelectItem value="LOW" className="text-white hover:bg-gray-800">
                                         <div className="flex items-center gap-2">
-                                            <Badge variant="outline" className={priorityColors.LOW}>
-                                                Low
-                                            </Badge>
+                                            <Badge variant="outline" className={priorityColors.LOW}>Low</Badge>
                                         </div>
                                     </SelectItem>
                                     <SelectItem value="MEDIUM" className="text-white hover:bg-gray-800">
                                         <div className="flex items-center gap-2">
-                                            <Badge variant="outline" className={priorityColors.MEDIUM}>
-                                                Medium
-                                            </Badge>
+                                            <Badge variant="outline" className={priorityColors.MEDIUM}>Medium</Badge>
                                         </div>
                                     </SelectItem>
                                     <SelectItem value="HIGH" className="text-white hover:bg-gray-800">
                                         <div className="flex items-center gap-2">
-                                            <Badge variant="outline" className={priorityColors.HIGH}>
-                                                High
-                                            </Badge>
+                                            <Badge variant="outline" className={priorityColors.HIGH}>High</Badge>
                                         </div>
                                     </SelectItem>
                                 </SelectContent>
@@ -267,30 +265,32 @@ const CreateTaskForm: React.FC = () => {
                                 <CalendarDays className="h-4 w-4" />
                                 Status
                             </Label>
-                            <Select onValueChange={(value) => setValue("status", value as any)} defaultValue="NOT_STARTED">
+                            <Select
+                                value={watch("status")}
+                                onValueChange={(value) => setValue("status", value as any)}
+                            >
                                 <SelectTrigger className="bg-[#1a1a1a] border-gray-700 text-white">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[#1a1a1a] border-gray-700">
                                     <SelectItem value="NOT_STARTED" className="text-white hover:bg-gray-800">
                                         <div className="flex items-center gap-2">
-                                            <Badge variant="outline" className={statusColors.NOT_STARTED}>
-                                                Not Started
-                                            </Badge>
+                                            <Badge variant="outline" className={statusColors.NOT_STARTED}>Not Started</Badge>
                                         </div>
                                     </SelectItem>
                                     <SelectItem value="IN_PROGRESS" className="text-white hover:bg-gray-800">
                                         <div className="flex items-center gap-2">
-                                            <Badge variant="outline" className={statusColors.IN_PROGRESS}>
-                                                In Progress
-                                            </Badge>
+                                            <Badge variant="outline" className={statusColors.IN_PROGRESS}>In Progress</Badge>
                                         </div>
                                     </SelectItem>
                                     <SelectItem value="PENDING" className="text-white hover:bg-gray-800">
                                         <div className="flex items-center gap-2">
-                                            <Badge variant="outline" className={statusColors.PENDING}>
-                                                Pending
-                                            </Badge>
+                                            <Badge variant="outline" className={statusColors.PENDING}>Pending</Badge>
+                                        </div>
+                                    </SelectItem>
+                                    <SelectItem value="COMPLETED" className="text-white hover:bg-gray-800">
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline" className={statusColors.COMPLETED}>Completed</Badge>
                                         </div>
                                     </SelectItem>
                                 </SelectContent>
@@ -306,7 +306,10 @@ const CreateTaskForm: React.FC = () => {
                                 <GitBranch className="h-4 w-4" />
                                 Repository
                             </Label>
-                            <Select onValueChange={(value) => setValue("repositoryId", value)} disabled={isLoadingRepositories}>
+                            <Select
+                                onValueChange={(value) => setValue("repositoryId", value)}
+                                disabled={isLoadingRepositories}
+                            >
                                 <SelectTrigger className="bg-[#1a1a1a] border-gray-700 text-white">
                                     <SelectValue placeholder="Select repository..." />
                                 </SelectTrigger>
@@ -367,16 +370,19 @@ const CreateTaskForm: React.FC = () => {
                                 <Tag className="h-4 w-4" />
                                 Tags (Optional)
                             </Label>
-                            <Select onValueChange={(value) => {
-                                const currentTags = getValues("tags") || [];
-                                if (!currentTags.includes(value)) {
-                                    setValue("tags", [...currentTags, value]);
-                                }
-                            }} disabled={isLoadingTags}>
+                            <Select
+                                onValueChange={(value) => {
+                                    const currentTags = getValues("tags") || [];
+                                    if (!currentTags.includes(value)) {
+                                        setValue("tags", [...currentTags, value]);
+                                    }
+                                }}
+                                disabled={isLoadingTags}
+                            >
                                 <SelectTrigger className="bg-[#1a1a1a] border-gray-700 text-white">
                                     <SelectValue placeholder="Select tags..." />
                                 </SelectTrigger>
-                                <SelectContent className="bg-[#1a1a1a] border-gray-700">
+                                <SelectContent className="bg-[#1a1a1a] border-gray-700 max-h-60 overflow-y-auto">
                                     {tags?.map((tag) => (
                                         <SelectItem key={tag.value} value={tag.value} className="text-white hover:bg-gray-800">
                                             {tag.label}
@@ -385,6 +391,7 @@ const CreateTaskForm: React.FC = () => {
                                 </SelectContent>
                             </Select>
                         </div>
+
                     </div>
 
                     <Separator className="bg-gray-800" />
@@ -417,6 +424,7 @@ const CreateTaskForm: React.FC = () => {
                             )}
                         </Button>
                     </div>
+
                 </form>
             </CardContent>
         </Card>
