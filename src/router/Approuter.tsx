@@ -10,6 +10,7 @@ import AdminDashboard from "@/components/admin/AdminDashboard";
 import AdminOutlet from "./outlets/AdminOutlet";
 import FoldersOutlet from "./outlets/FolderOutlet";
 import DashboardOutlet from "./outlets/DashboardOutlet";
+import ChatOutlet from "./outlets/ChatOutlet";
 // import Editor from "@/components/notes/Editor";
 import Obsidian from "@/components/notes/Obsidian";
 
@@ -26,7 +27,7 @@ const LoginForm = lazy(() => import("../components/login/Login"));
 const Notes = lazy(() => import("../components/notes/Notes"));
 const Issues = lazy(() => import("../components/issues/Issues"));
 const IssueDetail = lazy(() => import("../components/issues/IssueDetail"));
-// const ChatPage = lazy(() => import("../pages/chat/ChatPage"));
+const ChatPage = lazy(() => import("../pages/chat/ChatPage"));
 
 export const Approuter = () => {
   const router = createBrowserRouter([
@@ -112,6 +113,16 @@ export const Approuter = () => {
           ],
         },
         {
+          path: "/chat",
+          element: <ChatOutlet />,
+          children: [
+            {
+              path: "/chat",
+              element: <ChatPage />,
+            },
+          ],
+        },
+        {
           path: "/repositories",
           element: <ProjectsOutlet />,
           children: [
@@ -131,11 +142,8 @@ export const Approuter = () => {
       path: "/login",
       element: <LoginForm />,
     },
-    // {
-    //       path: "/chat",
-    //       element: <ChatPage />,
-    //     },
   ]);
+
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <RouterProvider router={router} />

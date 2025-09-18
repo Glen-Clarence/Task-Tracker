@@ -9,7 +9,7 @@ import { Trash2 } from 'lucide-react';
 import { projectsApi } from "@/api/projects.api";
 import { tagsApi, Tag } from "@/api/tags.api";
 import { UserProfile } from "@/api/users.api";
-import { issuesApi, IssueStatus, statusDisplayMap, IssuePriority, IssueDetailData } from '@/api/issues.api';
+import { issuesApi, IssueStatus, statusDisplayMap, IssuePriority, Issue } from '@/api/issues.api';
 
 // --- Type Definitions ---
 export type IssueFormData = {
@@ -34,6 +34,7 @@ type IssueSidebarProps = {
     issueId: string;
     onDelete: () => void;
     isDeleting: boolean;
+    initialRepositoryName?: string;
 };
 
 // --- Reusable Dropdown Component ---
@@ -50,7 +51,7 @@ const SidebarDropdown = ({ title, currentValue, isOpen, onToggle, children }: Si
 };
 
 // --- The Main Sidebar Component ---
-export const IssueSidebar = ({ issueId, onDelete, isDeleting }: IssueSidebarProps) => {
+export const IssueSidebar = ({ issueId, onDelete, isDeleting, initialRepositoryName }: IssueSidebarProps) => {
     const { watch, setValue, getValues } = useFormContext<IssueFormData>();
     const watchedValues = watch();
     const queryClient = useQueryClient();
@@ -68,7 +69,8 @@ export const IssueSidebar = ({ issueId, onDelete, isDeleting }: IssueSidebarProp
     });
 
     const updateIssueMutation = useMutation({
-        mutationFn: (updates: Partial<IssueDetailData>) => issuesApi.update({ id: issueId, updates }),
+        mutationFn: (updates: Partial<Issue> & { repositoryId?: string; assignedToIds?: string[]; tagIDs?: string[] }) =>
+            issuesApi.update({ id: issueId, updates }),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["issue", issueId] }),
         onError: (error) => console.error("Failed to update issue:", error),
     });
@@ -78,7 +80,7 @@ export const IssueSidebar = ({ issueId, onDelete, isDeleting }: IssueSidebarProp
         typeof tag.name === 'string' && tag.name.toLowerCase().includes(labelFilter.toLowerCase())
     );
 
-    const handleDropdownChange = (field: keyof IssueDetailData, value: any) => {
+    const handleDropdownChange = (field: string, value: any) => {
         updateIssueMutation.mutate({ [field]: value });
         setOpenDropdown(null);
     };
@@ -111,12 +113,16 @@ export const IssueSidebar = ({ issueId, onDelete, isDeleting }: IssueSidebarProp
 
     return (
         <div ref={sidebarRef} className="space-y-4">
-            <Card className="bg-grey border-0 backdrop-blur-sm rounded-md p-2">
+            <Card className="relative z-10 bg-grey border-0 backdrop-blur-sm rounded-md p-2">
                 <SidebarDropdown
                     title="Repository"
                     isOpen={openDropdown === 'repository'}
                     onToggle={() => setOpenDropdown(openDropdown === 'repository' ? null : 'repository')}
-                    currentValue={repositories.find(r => r.id === watchedValues.repositoryId)?.name || "No repository"}
+                    currentValue={
+                        repositories.find(r => r.id === watchedValues.repositoryId)?.name
+                        || initialRepositoryName
+                        || (watchedValues.repositoryId ? 'Loading repository...' : 'No repository')
+                    }
                 >
                     <div className="absolute top-full left-0 bg-black border border-slate-700 w-full z-20 rounded-md shadow-lg">
                         {repositories.map(repo => (

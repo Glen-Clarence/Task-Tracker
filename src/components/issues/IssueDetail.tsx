@@ -3,14 +3,19 @@ import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, FormProvider } from "react-hook-form";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowLeft, MessageSquare, Send, User as UserIcon, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, MessageSquare, Send, User as UserIcon, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { issuesApi, IssueStatus, statusDisplayMap, IssueDetailData } from "@/api/issues.api";
-import useUserStore from "@/store/useUserStore";
+import { DescriptionEditor } from "./DescriptionEditor";
+import { $getRoot, EditorState } from "lexical";
+import { HeadingNode, QuoteNode } from "@lexical/rich-text";
+import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
+import { ListItemNode, ListNode } from "@lexical/list";
+import { CodeHighlightNode, CodeNode } from "@lexical/code";
+import { AutoLinkNode, LinkNode } from "@lexical/link";
+import ExampleTheme from "../ui/themes/ExpTheme";
+import { issuesApi, Issue } from "@/api/issues.api";
 import { IssueSidebar, IssueFormData } from './IssueSidebar';
 
 // Reusable Confirmation Dialog Component
@@ -60,6 +65,92 @@ const IssueDetail = (): React.JSX.Element => {
   const methods = useForm<IssueFormData>();
   const { register, handleSubmit, reset, formState: { isSubmitting } } = methods;
 
+  // Lexical editor config and handlers (mirrors NewIssue.tsx)
+  const getInitialEditorState = (description?: string) => {
+    // If we have a description, try to parse it as a Lexical serialized state.
+    // If it's plain text (legacy), wrap it into a minimal Lexical JSON document.
+    if (description && description.trim().length > 0) {
+      try {
+        JSON.parse(description);
+        return description; // Already a serialized Lexical state
+      } catch {
+        // Fallback: treat as plain text and wrap it
+        return JSON.stringify({
+          root: {
+            children: [
+              {
+                type: "paragraph",
+                children: [
+                  { type: "text", text: description, version: 1 }
+                ],
+                direction: null,
+                format: "",
+                indent: 0,
+                version: 1,
+              },
+            ],
+            direction: null,
+            format: "",
+            indent: 0,
+            type: "root",
+            version: 1,
+          },
+        });
+      }
+    }
+    // Default empty editor state
+    return JSON.stringify({
+      root: {
+        children: [
+          {
+            children: [],
+            direction: null,
+            format: "",
+            indent: 0,
+            type: "paragraph",
+            version: 1,
+          },
+        ],
+        direction: null,
+        format: "",
+        indent: 0,
+        type: "root",
+        version: 1,
+      },
+    });
+  };
+
+  const editorConfig = (initialDescription?: string) => ({
+    namespace: "IssueDescriptionEditor",
+    theme: ExampleTheme,
+    onError(error: Error) {
+      console.error(error);
+    },
+    editorState: getInitialEditorState(initialDescription),
+    nodes: [
+      HeadingNode,
+      ListNode,
+      ListItemNode,
+      QuoteNode,
+      CodeNode,
+      CodeHighlightNode,
+      TableNode,
+      TableCellNode,
+      TableRowNode,
+      AutoLinkNode,
+      LinkNode,
+    ],
+  });
+
+  const handleDescriptionChange = (editorState: EditorState) => {
+    editorState.read(() => {
+      const root = $getRoot();
+      const description = root.getTextContent();
+      // Update react-hook-form value
+      methods.setValue("description", description, { shouldDirty: true });
+    });
+  };
+
   useEffect(() => {
     if (issue) {
       reset({
@@ -75,7 +166,8 @@ const IssueDetail = (): React.JSX.Element => {
   }, [issue, reset]);
 
   const updateIssueMutation = useMutation({
-    mutationFn: (updates: Partial<IssueDetailData>) => issuesApi.update({ id: issue!.id, updates }),
+    mutationFn: (updates: Partial<Issue> & { repositoryId?: string; assignedToIds?: string[]; tagIDs?: string[] }) =>
+      issuesApi.update({ id: issue!.id, updates }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["issue", id] });
       queryClient.invalidateQueries({ queryKey: ["issues"] });
@@ -93,12 +185,31 @@ const IssueDetail = (): React.JSX.Element => {
     onError: (error) => console.error("Failed to delete issue:", error),
   });
 
-  const onSaveTitleAndDescription = (data: Pick<IssueFormData, 'title' | 'description'>) => {
-    updateIssueMutation.mutate(data);
+  const onSaveTitleAndDescription = (data: IssueFormData) => {
+    const payload: Partial<Issue> & { repositoryId?: string; assignedToIds?: string[]; tagIDs?: string[] } = {
+      title: data.title,
+      description: data.description,
+      status: data.status,
+      priority: data.priority,
+      repositoryId: data.repositoryId,
+      assignedToIds: (data.assignedTo || []).map((u) => u.id),
+      tagIDs: (data.tags || []).map((t) => t.id),
+    };
+    updateIssueMutation.mutate(payload);
   };
 
   const onCancelEdit = () => {
-    reset({ title: issue?.title, description: issue?.description });
+    if (issue) {
+      reset({
+        title: issue.title,
+        description: issue.description,
+        status: issue.status,
+        priority: issue.priority,
+        repositoryId: issue.repository.id,
+        assignedTo: issue.assignedTo,
+        tags: issue.tags,
+      });
+    }
     setIsEditing(false);
   };
 
@@ -113,8 +224,8 @@ const IssueDetail = (): React.JSX.Element => {
 
   if (isLoading) return <div className="text-center p-8 text-white">Loading issue...</div>;
   if (isError || !issue) return <div className="text-center p-8 text-white">Issue not found</div>;
-  
-  const statusInfo = statusDisplayMap[issue.status] || { label: issue.status, color: 'bg-gray-500' };
+
+  // status info not used in this view
 
   return (
     <FormProvider {...methods}>
@@ -131,21 +242,19 @@ const IssueDetail = (): React.JSX.Element => {
                 <form onSubmit={handleSubmit(onSaveTitleAndDescription)}>
                   <Card className="bg-grey border-0 backdrop-blur-sm p-6">
                     <div className="pb-4 border-b border-slate-700">
-                      <div className="flex justify-between items-center mb-2">
+                      <div className="flex justify-between items-start mb-2">
                         {isEditing ? (
-                          <Input 
+                          <Input
                             {...register("title", { required: true })}
-                            className="text-2xl font-bold text-white bg-slate-800 border-slate-600 h-auto"
+                            className="text-2xl font-bold text-white bg-black border-slate-600 h-auto"
                           />
                         ) : (
                           <h1 className="text-2xl font-bold text-white">{issue.title}</h1>
                         )}
-                        {!isEditing ? (
+                        {!isEditing && (
                           <Button type="button" size="sm" onClick={() => setIsEditing(true)}>
-                            <Edit className="h-4 w-4 mr-2"/> Edit
+                            <Edit className="h-4 w-4 mr-2" /> Edit
                           </Button>
-                        ) : (
-                          <Badge className={`${statusInfo.color} border-0`}>{statusInfo.label}</Badge>
                         )}
                       </div>
                       <p className="text-sm text-gray-400">
@@ -155,24 +264,22 @@ const IssueDetail = (): React.JSX.Element => {
 
                     <div className="py-6">
                       {isEditing ? (
-                        <Textarea 
-                          {...register("description")}
-                          className="text-gray-300 bg-slate-800 border-slate-600 min-h-[120px]"
-                          rows={5}
-                        />
+                        <>
+                          <DescriptionEditor
+                            initialConfig={editorConfig(issue.description)}
+                            onChange={handleDescriptionChange}
+                          />
+                          <div className="flex justify-end gap-2 mt-4">
+                            <Button type="button" variant="outline" size="sm" onClick={onCancelEdit}>Cancel</Button>
+                            <Button type="submit" className="bg-green-600 hover:bg-green-700" size="sm" disabled={isSubmitting}>
+                              {isSubmitting ? "Saving..." : "Save changes"}
+                            </Button>
+                          </div>
+                        </>
                       ) : (
                         <p className="text-gray-300 whitespace-pre-wrap">{issue.description || 'No description provided.'}</p>
                       )}
                     </div>
-
-                    {isEditing && (
-                      <div className="flex justify-end gap-2 pt-4 border-t border-slate-700">
-                        <Button type="button" variant="outline" onClick={onCancelEdit}>Cancel</Button>
-                        <Button type="submit" className="bg-green-600 hover:bg-green-700" disabled={isSubmitting}>
-                          {isSubmitting ? "Saving..." : "Save Changes"}
-                        </Button>
-                      </div>
-                    )}
                     
                     {!isEditing && (
                       <div className="pt-6 border-t border-slate-700">
@@ -214,10 +321,11 @@ const IssueDetail = (): React.JSX.Element => {
 
               {/* --- SIDEBAR --- */}
               <div className="space-y-4">
-                <IssueSidebar 
+                <IssueSidebar
                   issueId={issue.id}
                   onDelete={() => setIsDeleteDialogOpen(true)}
                   isDeleting={deleteIssueMutation.isPending}
+                  initialRepositoryName={issue.repository.name}
                 />
               </div>
             </div>
