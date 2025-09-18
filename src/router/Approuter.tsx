@@ -10,6 +10,7 @@ import AdminDashboard from "@/components/admin/AdminDashboard";
 import AdminOutlet from "./outlets/AdminOutlet";
 import FoldersOutlet from "./outlets/FolderOutlet";
 import DashboardOutlet from "./outlets/DashboardOutlet";
+import ChatOutlet from "./outlets/ChatOutlet";
 // import Editor from "@/components/notes/Editor";
 import Obsidian from "@/components/notes/Obsidian";
 
@@ -25,6 +26,8 @@ const LoginForm = lazy(() => import("../components/login/Login"));
 // Lazy load new components
 const Notes = lazy(() => import("../components/notes/Notes"));
 const Issues = lazy(() => import("../components/issues/Issues"));
+const IssueDetail = lazy(() => import("../components/issues/IssueDetail"));
+const ChatPage = lazy(() => import("../pages/chat/ChatPage"));
 
 export const Approuter = () => {
   const router = createBrowserRouter([
@@ -103,6 +106,20 @@ export const Approuter = () => {
               path: "/issues/new",
               element: <NewIssue />,
             },
+            {
+              path: "/issues/:id",
+              element: <IssueDetail />,
+            },
+          ],
+        },
+        {
+          path: "/chat",
+          element: <ChatOutlet />,
+          children: [
+            {
+              path: "/chat",
+              element: <ChatPage />,
+            },
           ],
         },
         {
@@ -126,6 +143,7 @@ export const Approuter = () => {
       element: <LoginForm />,
     },
   ]);
+
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <RouterProvider router={router} />

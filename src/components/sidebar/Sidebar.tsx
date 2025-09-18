@@ -13,6 +13,7 @@ import {
   ShieldUser,
   LogOut,
   BookDashed,
+  MessageSquare,
 } from "lucide-react";
 import clsx from "clsx";
 import { useState } from "react";
@@ -41,6 +42,7 @@ const Sidebar = () => {
     { key: "/dashboard", icon: BookDashed, label: "Dashboard" },
     { key: "/tasks", icon: ListTodo, label: "Tasks" },
     { key: "/issues", icon: AlertCircle, label: "Issues" },
+    { key: "/chat", icon: MessageSquare, label: "Chat" },
     { key: "/repositories", icon: Folder, label: "Repositories" },
     { key: "/folders/notes", icon: StickyNote, label: "Notes" },
     { key: "/pulseboard", icon: HeartPulse, label: "Pulseboard" },

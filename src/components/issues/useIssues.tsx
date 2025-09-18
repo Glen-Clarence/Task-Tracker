@@ -1,7 +1,10 @@
 import { useQuery, useMutation, useQueryClient, QueryFilters } from "@tanstack/react-query";
 import { useParams } from "react-router";
-import { Issue, issuesApi, CreateIssueData, IssueStatus, IssuePriority } from "../../api/issues.api";
+import { Issue, issuesApi, IssueStatus, IssuePriority } from "../../api/issues.api";
 import { projectsApi } from "@/api/projects.api";
+
+// Define the create payload shape to match issuesApi.create signature
+type CreateIssueData = Omit<Issue, "id" | "createdAt" | "updatedAt"> & { repositoryId: string };
 
 interface UpdateIssueParams {
   issueId: string;
