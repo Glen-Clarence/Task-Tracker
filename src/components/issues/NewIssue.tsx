@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useIssues } from "./useIssues";
@@ -122,7 +122,6 @@ const NewIssue = () => {
     setFormData(prev => ({ ...prev, description }));
   };
   
-  // This function will be passed as a prop to the DescriptionEditor
   const handleDescriptionChange = (editorState: EditorState) => {
     editorState.read(() => {
       const root = $getRoot();
@@ -131,15 +130,27 @@ const NewIssue = () => {
     });
   };
 
-  // ... All other state and hooks remain unchanged ...
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedAssignees, setSelectedAssignees] = useState<UserProfile[]>([]);
   const [createMore, setCreateMore] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const [labelFilter, setLabelFilter] = useState("");
   const sidebarRef = useRef<HTMLDivElement>(null);
+  
+  // --- MODIFIED: Unified filter state for all dropdowns ---
+  const [filters, setFilters] = useState({
+    repository: '',
+    priority: '',
+    status: '',
+    tags: '',
+    assignees: ''
+  });
+
+  // --- NEW: Handler to update the filter for a specific dropdown ---
+  const handleFilterChange = (key: keyof typeof filters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
 
   const { data: repositories = [] } = useQuery({
     queryKey: ["repositories"],
@@ -157,14 +168,44 @@ const NewIssue = () => {
     queryFn: tagsApi.getAll,
   });
 
-  const filteredTags = tags.filter(tag =>
-  typeof tag.name === "string" &&
-  tag.name.toLowerCase().includes(labelFilter.toLowerCase())
-);
+  // --- NEW & MODIFIED: Memoized filtering logic for each dropdown ---
+  const filteredRepositories = useMemo(() =>
+    repositories.filter(repo =>
+      repo.name.toLowerCase().includes(filters.repository.toLowerCase())
+    ), [repositories, filters.repository]
+  );
+
+  const priorities: IssuePriority[] = ["LOW", "MEDIUM", "HIGH"];
+  const filteredPriorities = useMemo(() =>
+    priorities.filter(p =>
+      p.toLowerCase().includes(filters.priority.toLowerCase())
+    ), [filters.priority]
+  );
+  
+  const statuses: IssueStatus[] = ["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"];
+  const filteredStatuses = useMemo(() =>
+    statuses.filter(s =>
+      s.toLowerCase().includes(filters.status.toLowerCase())
+    ), [filters.status]
+  );
+
+  const filteredTags = useMemo(() =>
+    tags.filter(tag =>
+      typeof tag.name === "string" &&
+      tag.name.toLowerCase().includes(filters.tags.toLowerCase())
+    ), [tags, filters.tags]
+  );
 
   const availableUsers = repositoryUsers
     ? [...repositoryUsers.members, repositoryUsers.lead]
     : [];
+
+  const filteredAssignees = useMemo(() =>
+    availableUsers.filter(user =>
+      user.name.toLowerCase().includes(filters.assignees.toLowerCase())
+    ), [availableUsers, filters.assignees]
+  );
+
 
   useEffect(() => {
     setFormData(prev => ({
@@ -287,7 +328,6 @@ const NewIssue = () => {
                   {/* --- Title Section --- */}
                   <div className="space-y-3">
                     <Label htmlFor="title" className="text-white text-sm font-semibold flex items-center gap-2">
-                      {/* <div className="w-2 h-2 rounded-full bg-blue-400"></div> */}
                       Issue Title *
                     </Label>
                     <Input
@@ -308,8 +348,7 @@ const NewIssue = () => {
                   {/* --- NEW Description Section --- */}
                   <div className="space-y-3">
                     <Label className="text-white text-sm font-semibold flex items-center gap-2">
-                       {/* <div className="w-2 h-2 rounded-full bg-purple-400"></div> */}
-                       Description *
+                      Description *
                     </Label>
                     <DescriptionEditor 
                       initialConfig={editorConfig(formData.description)}
@@ -325,9 +364,9 @@ const NewIssue = () => {
                     <Button type="button" variant="ghost" className="text-gray-400 text-sm hover:text-black" onClick={() => fileInputRef.current?.click()}>
                       📎 Attach files
                     </Button>
-                     {attachments.length > 0 && (
+                      {attachments.length > 0 && (
                         <div className="text-xs text-gray-400">
-                           {attachments.length} file(s) selected
+                          {attachments.length} file(s) selected
                         </div>
                       )}
                   </div>
@@ -356,7 +395,7 @@ const NewIssue = () => {
 
             {/* --- Sidebar --- */}
             <div className="lg:col-span-1">
-              <Card ref={sidebarRef} className="bg-grey border-0 backdrop-blur-sm rounded-md">
+              <Card ref={sidebarRef} className="bg-grey border-0 backdrop-blur-sm rounded-md shadow-lg">
                 <div className="p-2 space-y-2">
                   <SidebarDropdown
                     title="Repository"
@@ -365,8 +404,18 @@ const NewIssue = () => {
                     currentValue={repositories.find(r => r.id === formData.repositoryId)?.name || "No repository selected"}
                   >
                     <div className="absolute bg-black border border-slate-700 w-full mt-1 z-10 rounded-md shadow-lg">
+                       <div className="bg-black p-2 border-b border-slate-700">
+                         <Input 
+                           type="text" 
+                           placeholder="Filter repositories..." 
+                           value={filters.repository} 
+                           onChange={(e) => handleFilterChange('repository', e.target.value)} 
+                           onClick={(e) => e.stopPropagation()} 
+                           className="bg-black border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
+                         />
+                       </div>
                       <div className="max-h-60 overflow-y-auto">
-                        {repositories.map(repo => (
+                        {filteredRepositories.length > 0 ? filteredRepositories.map(repo => (
                           <div
                             key={repo.id}
                             className="p-2 text-xs text-white hover:bg-slate-800 cursor-pointer border-b border-slate-800 last:border-b-0"
@@ -374,7 +423,7 @@ const NewIssue = () => {
                           >
                             {repo.name}
                           </div>
-                        ))}
+                        )) : <div className="p-2 text-xs text-gray-400">No results</div>}
                       </div>
                     </div>
                   </SidebarDropdown>
@@ -386,8 +435,18 @@ const NewIssue = () => {
                     currentValue={formData.priority || "No priority selected"}
                   >
                      <div className="absolute bg-black border border-slate-700 w-full mt-1 z-10 rounded-md shadow-lg">
+                        <div className="bg-black p-2 border-b border-slate-700">
+                           <Input 
+                             type="text" 
+                             placeholder="Filter priorities..." 
+                             value={filters.priority} 
+                             onChange={(e) => handleFilterChange('priority', e.target.value)} 
+                             onClick={(e) => e.stopPropagation()} 
+                             className="bg-black border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
+                           />
+                         </div>
                       <div className="max-h-60 overflow-y-auto">
-                        {["LOW", "MEDIUM", "HIGH"].map(p => (
+                        {filteredPriorities.length > 0 ? filteredPriorities.map(p => (
                           <div
                             key={p}
                             className="p-2 text-xs text-white hover:bg-slate-800 cursor-pointer border-b border-slate-800 last:border-b-0"
@@ -395,7 +454,7 @@ const NewIssue = () => {
                           >
                             {p}
                           </div>
-                        ))}
+                        )) : <div className="p-2 text-xs text-gray-400">No results</div>}
                       </div>
                     </div>
                   </SidebarDropdown>
@@ -407,8 +466,18 @@ const NewIssue = () => {
                     currentValue={formData.status || "No status selected"}
                   >
                      <div className="absolute bg-black border border-slate-700 w-full mt-1 z-10 rounded-md shadow-lg">
+                        <div className="bg-black p-2 border-b border-slate-700">
+                           <Input 
+                             type="text" 
+                             placeholder="Filter statuses..." 
+                             value={filters.status} 
+                             onChange={(e) => handleFilterChange('status', e.target.value)} 
+                             onClick={(e) => e.stopPropagation()} 
+                             className="bg-black border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
+                           />
+                         </div>
                       <div className="max-h-60 overflow-y-auto">
-                        {["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"].map(s => (
+                        {filteredStatuses.length > 0 ? filteredStatuses.map(s => (
                           <div
                             key={s}
                             className="p-2 text-xs text-white hover:bg-slate-800 cursor-pointer border-b border-slate-800 last:border-b-0"
@@ -416,7 +485,7 @@ const NewIssue = () => {
                           >
                             {s}
                           </div>
-                        ))}
+                        )) : <div className="p-2 text-xs text-gray-400">No results</div>}
                       </div>
                     </div>
                   </SidebarDropdown>
@@ -434,14 +503,14 @@ const NewIssue = () => {
                         <Input 
                           type="text" 
                           placeholder="Filter labels" 
-                          value={labelFilter} 
-                          onChange={(e) => setLabelFilter(e.target.value)} 
+                          value={filters.tags} 
+                          onChange={(e) => handleFilterChange('tags', e.target.value)} 
                           onClick={(e) => e.stopPropagation()} 
                           className="bg-black border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
                         />
                       </div>
                       <div className="max-h-60 overflow-y-auto">
-                        {filteredTags.map(tag => (
+                        {filteredTags.length > 0 ? filteredTags.map(tag => (
                           <div 
                             key={tag.id} 
                             className="text-white flex items-start gap-2 p-2 border-b border-slate-800 last:border-b-0 hover:bg-slate-800 cursor-pointer" 
@@ -463,7 +532,7 @@ const NewIssue = () => {
                               )}
                             </div>
                           </div>
-                        ))}
+                        )) : <div className="p-2 text-xs text-gray-400">No results</div>}
                       </div>
                     </div>
                   </SidebarDropdown>
@@ -472,16 +541,26 @@ const NewIssue = () => {
                     title="Assignees"
                     isOpen={openDropdown === 'assignees'}
                     onToggle={() => toggleDropdown('assignees')}
-                    currentValue={selectedAssignees.length > 0 ? selectedAssignees.map(u => u.name).join(", ") : "No one assigned"}
+                    currentValue={selectedAssignees.length > 0 ? selectedAssignees.map(u => u.name).join(", ") : "No one - Assign yourself"}
                   >
                     <div className="absolute bg-black border border-slate-700 w-full mt-1 z-10 rounded-md shadow-lg">
+                      <div className="bg-black p-2 border-b border-slate-700">
+                         <Input 
+                           type="text" 
+                           placeholder="Filter users..." 
+                           value={filters.assignees} 
+                           onChange={(e) => handleFilterChange('assignees', e.target.value)} 
+                           onClick={(e) => e.stopPropagation()} 
+                           className="bg-black border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
+                         />
+                       </div>
                       <div className="max-h-60 overflow-y-auto">
-                        {availableUsers.map(user => (
+                        {filteredAssignees.length > 0 ? filteredAssignees.map(user => (
                           <div key={user.id} className="text-white text-xs flex items-center gap-3 p-2 border-b border-slate-800 last:border-b-0 hover:bg-slate-800 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleAssigneeToggle(user); }}>
                             <input type="checkbox" readOnly checked={selectedAssignees.some(assignee => assignee.id === user.id)} className="flex-shrink-0 h-4 w-4 bg-transparent border-slate-600 rounded" />
                             <span>{user.name}</span>
                           </div>
-                        ))}
+                        )) : <div className="p-2 text-xs text-gray-400">No results</div>}
                       </div>
                     </div>
                   </SidebarDropdown>
