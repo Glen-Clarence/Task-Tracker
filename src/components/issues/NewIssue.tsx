@@ -10,7 +10,7 @@ import { ArrowLeft, AlertCircle } from "lucide-react";
 import { $getRoot, EditorState } from "lexical";
 import { Issue, IssueStatus } from "@/api/issues.api";
 import { projectsApi } from "@/api/projects.api";
-import { UserProfile } from "@/api/users.api";
+import { UserProfile, usersApi } from "@/api/users.api";
 import { Tag, tagsApi } from "@/api/tags.api";
 
 
@@ -44,9 +44,9 @@ type SidebarDropdownProps = {
 
 const SidebarDropdown = ({ title, currentValue, isOpen, onToggle, children }: SidebarDropdownProps) => {
   return (
-    <div className="border-b border-gray-600 py-2 relative">
+    <div className="py-2 relative">
       <div
-        className="text-xs text-white flex justify-between hover:bg-gray-800 rounded-md pt-1 pb-1 pl-2 cursor-pointer"
+        className="text-xs text-white flex justify-between hover:bg-gray-800 rounded-xl pt-1 pb-1 pl-2 cursor-pointer"
         onClick={onToggle}
       >
         {title} <span className="text-gray-500 pr-2">⚙️</span>
@@ -59,10 +59,22 @@ const SidebarDropdown = ({ title, currentValue, isOpen, onToggle, children }: Si
   );
 };
 
+// --- Current user hook: fetch logged-in user profile ---
+const useCurrentUser = () => {
+  return useQuery({
+    queryKey: ["current-user"],
+    queryFn: usersApi.getProfile,
+  });
+};
+
+
 const NewIssue = () => {
   const navigate = useNavigate();
   const { id: repositoryId } = useParams();
   const { createIssue, isCreating } = useIssues();
+
+  // Get the current user
+  const { data: currentUser } = useCurrentUser();
 
   const [formData, setFormData] = useState<CreateIssueFormData>({
     title: "",
@@ -72,7 +84,7 @@ const NewIssue = () => {
     repositoryId: repositoryId || "",
     assignedToIds: [],
     dueDate: undefined,
-    tagIDs: [] // Initialize as empty array
+    tagIDs: []
   });
 
   const getInitialEditorState = (description?: string) => {
@@ -138,7 +150,6 @@ const NewIssue = () => {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   
-  // --- MODIFIED: Unified filter state for all dropdowns ---
   const [filters, setFilters] = useState({
     repository: '',
     priority: '',
@@ -147,7 +158,6 @@ const NewIssue = () => {
     assignees: ''
   });
 
-  // --- NEW: Handler to update the filter for a specific dropdown ---
   const handleFilterChange = (key: keyof typeof filters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
@@ -168,10 +178,9 @@ const NewIssue = () => {
     queryFn: tagsApi.getAll,
   });
 
-  // --- NEW & MODIFIED: Memoized filtering logic for each dropdown ---
   const filteredRepositories = useMemo(() =>
     repositories.filter(repo =>
-      repo.name.toLowerCase().includes(filters.repository.toLowerCase())
+      (repo?.name ?? '').toLowerCase().includes(filters.repository.toLowerCase())
     ), [repositories, filters.repository]
   );
 
@@ -197,15 +206,14 @@ const NewIssue = () => {
   );
 
   const availableUsers = repositoryUsers
-    ? [...repositoryUsers.members, repositoryUsers.lead]
+    ? ([...repositoryUsers.members, repositoryUsers.lead].filter(Boolean) as UserProfile[])
     : [];
 
   const filteredAssignees = useMemo(() =>
     availableUsers.filter(user =>
-      user.name.toLowerCase().includes(filters.assignees.toLowerCase())
+      (user?.name ?? '').toLowerCase().includes(filters.assignees.toLowerCase())
     ), [availableUsers, filters.assignees]
   );
-
 
   useEffect(() => {
     setFormData(prev => ({
@@ -276,6 +284,18 @@ const NewIssue = () => {
       }
     });
   };
+  
+  const handleAssignSelf = () => {
+      if (!formData.repositoryId) return; // prevent assigning without a repository
+      if (currentUser) {
+          const isAlreadyAssigned = selectedAssignees.some(
+              assignee => assignee.id === currentUser.id
+          );
+          if (!isAlreadyAssigned) {
+              handleAssigneeToggle(currentUser);
+          }
+      }
+  };
 
   const handleTagToggle = (tagId: string) => {
     setFormData(prev => ({
@@ -318,17 +338,15 @@ const NewIssue = () => {
             Back to Issues
           </Button>
         </div>
-        
+        <h1 className="text-xl text-white">Create a new issue</h1>
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <div className="lg:col-span-3">
               <Card className="bg-grey border-0 backdrop-blur-sm flex flex-col">
-                {/* Card Main Content */}
-                <div className="p-8 space-y-6">
-                  {/* --- Title Section --- */}
+                <div className="p-2 space-y-6">
                   <div className="space-y-3">
-                    <Label htmlFor="title" className="text-white text-sm font-semibold flex items-center gap-2">
-                      Issue Title *
+                    <Label htmlFor="title" className="text-white text-sm flex items-center gap-2">
+                      Add a title *
                     </Label>
                     <Input
                       id="title"
@@ -345,10 +363,9 @@ const NewIssue = () => {
                     )}
                   </div>
                   
-                  {/* --- NEW Description Section --- */}
                   <div className="space-y-3">
-                    <Label className="text-white text-sm font-semibold flex items-center gap-2">
-                      Description *
+                    <Label className="text-white text-sm flex items-center gap-2">
+                      Add a description *
                     </Label>
                     <DescriptionEditor 
                       initialConfig={editorConfig(formData.description)}
@@ -357,7 +374,6 @@ const NewIssue = () => {
                   </div>
                 </div>
 
-                {/* --- NEW Card Footer for Buttons --- */}
                 <div className="flex items-center justify-between p-4  mt-auto">
                   <div className="flex items-center gap-3">
                     <input ref={fileInputRef} type="file" className="hidden" multiple onChange={(e) => { const files = Array.from(e.target.files || []); setAttachments(files); }} />
@@ -393,9 +409,8 @@ const NewIssue = () => {
               </Card>
             </div>
 
-            {/* --- Sidebar --- */}
             <div className="lg:col-span-1">
-              <Card ref={sidebarRef} className="bg-grey border-0 backdrop-blur-sm rounded-md shadow-lg">
+              <Card ref={sidebarRef} className="bg-grey border-0 backdrop-blur-sm rounded-xl shadow-lg">
                 <div className="p-2 space-y-2">
                   <SidebarDropdown
                     title="Repository"
@@ -403,18 +418,18 @@ const NewIssue = () => {
                     onToggle={() => toggleDropdown('repository')}
                     currentValue={repositories.find(r => r.id === formData.repositoryId)?.name || "No repository selected"}
                   >
-                    <div className="absolute bg-black border border-slate-700 w-full mt-1 z-10 rounded-md shadow-lg">
-                       <div className="bg-black p-2 border-b border-slate-700">
+                    <div className="absolute w-full mt-1 z-10 shadow-lg">
+                       <div className="bg-black border border-slate-700 rounded-tl-lg rounded-tr-lg p-2 border-b-0">
                          <Input 
                            type="text" 
-                           placeholder="Filter repositories..." 
+                           placeholder="Filter repositories" 
                            value={filters.repository} 
                            onChange={(e) => handleFilterChange('repository', e.target.value)} 
                            onClick={(e) => e.stopPropagation()} 
                            className="bg-black border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
                          />
                        </div>
-                      <div className="max-h-60 overflow-y-auto">
+                      <div className="max-h-60 overflow-y-auto bg-black border border-slate-700 rounded-b-lg border-t-0">
                         {filteredRepositories.length > 0 ? filteredRepositories.map(repo => (
                           <div
                             key={repo.id}
@@ -434,18 +449,18 @@ const NewIssue = () => {
                     onToggle={() => toggleDropdown('priority')}
                     currentValue={formData.priority || "No priority selected"}
                   >
-                     <div className="absolute bg-black border border-slate-700 w-full mt-1 z-10 rounded-md shadow-lg">
-                        <div className="bg-black p-2 border-b border-slate-700">
-                           <Input 
-                             type="text" 
-                             placeholder="Filter priorities..." 
-                             value={filters.priority} 
-                             onChange={(e) => handleFilterChange('priority', e.target.value)} 
-                             onClick={(e) => e.stopPropagation()} 
-                             className="bg-black border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
-                           />
-                         </div>
-                      <div className="max-h-60 overflow-y-auto">
+                     <div className="absolute w-full mt-1 z-10 shadow-lg">
+                       <div className="bg-black border border-slate-700 rounded-tl-lg rounded-tr-lg p-2 border-b-0">
+                         <Input 
+                           type="text" 
+                           placeholder="Filter priorities" 
+                           value={filters.priority} 
+                           onChange={(e) => handleFilterChange('priority', e.target.value)} 
+                           onClick={(e) => e.stopPropagation()} 
+                           className="bg-black border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
+                         />
+                       </div>
+                      <div className="max-h-60 overflow-y-auto bg-black border border-slate-700 rounded-b-lg border-t-0">
                         {filteredPriorities.length > 0 ? filteredPriorities.map(p => (
                           <div
                             key={p}
@@ -465,18 +480,18 @@ const NewIssue = () => {
                     onToggle={() => toggleDropdown('status')}
                     currentValue={formData.status || "No status selected"}
                   >
-                     <div className="absolute bg-black border border-slate-700 w-full mt-1 z-10 rounded-md shadow-lg">
-                        <div className="bg-black p-2 border-b border-slate-700">
-                           <Input 
-                             type="text" 
-                             placeholder="Filter statuses..." 
-                             value={filters.status} 
-                             onChange={(e) => handleFilterChange('status', e.target.value)} 
-                             onClick={(e) => e.stopPropagation()} 
-                             className="bg-black border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
-                           />
-                         </div>
-                      <div className="max-h-60 overflow-y-auto">
+                     <div className="absolute w-full mt-1 z-10 shadow-lg">
+                       <div className="bg-black border border-slate-700 rounded-tl-lg rounded-tr-lg p-2 border-b-0">
+                         <Input 
+                           type="text" 
+                           placeholder="Filter statuses" 
+                           value={filters.status} 
+                           onChange={(e) => handleFilterChange('status', e.target.value)} 
+                           onClick={(e) => e.stopPropagation()} 
+                           className="bg-black border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
+                         />
+                       </div>
+                      <div className="max-h-60 overflow-y-auto bg-black border border-slate-700 rounded-b-lg border-t-0">
                         {filteredStatuses.length > 0 ? filteredStatuses.map(s => (
                           <div
                             key={s}
@@ -498,8 +513,8 @@ const NewIssue = () => {
                       ? tags.filter(tag => formData.tagIDs?.includes(tag.id)).map(tag => tag.name).join(", ") 
                       : "No labels selected"}
                   >
-                    <div className="absolute bg-black border border-slate-700 w-full mt-1 z-10 rounded-md shadow-lg">
-                      <div className="bg-black p-2 border-b border-slate-700">
+                    <div className="absolute w-full mt-1 z-10 shadow-lg">
+                      <div className="bg-black border border-slate-700 rounded-tl-lg rounded-tr-lg p-2 border-b-0">
                         <Input 
                           type="text" 
                           placeholder="Filter labels" 
@@ -509,15 +524,12 @@ const NewIssue = () => {
                           className="bg-black border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
                         />
                       </div>
-                      <div className="max-h-60 overflow-y-auto">
+                      <div className="max-h-60 overflow-y-auto bg-black border border-slate-700 rounded-b-lg border-t-0">
                         {filteredTags.length > 0 ? filteredTags.map(tag => (
                           <div 
                             key={tag.id} 
                             className="text-white flex items-start gap-2 p-2 border-b border-slate-800 last:border-b-0 hover:bg-slate-800 cursor-pointer" 
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
-                              handleTagToggle(tag.id); 
-                            }}
+                            onClick={(e) => { e.stopPropagation(); handleTagToggle(tag.id); }}
                           >
                             <input 
                               type="checkbox" 
@@ -537,24 +549,42 @@ const NewIssue = () => {
                     </div>
                   </SidebarDropdown>
 
+                  {/* --- MODIFIED ASSIGNEES DROPDOWN --- */}
                   <SidebarDropdown
                     title="Assignees"
                     isOpen={openDropdown === 'assignees'}
                     onToggle={() => toggleDropdown('assignees')}
-                    currentValue={selectedAssignees.length > 0 ? selectedAssignees.map(u => u.name).join(", ") : "No one - Assign yourself"}
+                    currentValue={
+                        selectedAssignees.length > 0
+                        ? selectedAssignees.map(u => u.name).join(", ")
+                        : (
+                          <span>
+                                No one -{' '}
+                            <button
+                                type="button"
+                                onClick={handleAssignSelf}
+                                disabled={!formData.repositoryId || !currentUser}
+                                aria-disabled={!formData.repositoryId || !currentUser}
+                                className={`text-blue-400 hover:underline ${(!formData.repositoryId || !currentUser) ? 'opacity-50 cursor-not-allowed hover:no-underline' : ''}`}
+                            >
+                                Assign yourself
+                            </button>
+                            </span>
+                        )
+                    }
                   >
-                    <div className="absolute bg-black border border-slate-700 w-full mt-1 z-10 rounded-md shadow-lg">
-                      <div className="bg-black p-2 border-b border-slate-700">
-                         <Input 
-                           type="text" 
-                           placeholder="Filter users..." 
-                           value={filters.assignees} 
-                           onChange={(e) => handleFilterChange('assignees', e.target.value)} 
-                           onClick={(e) => e.stopPropagation()} 
-                           className="bg-black border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
-                         />
-                       </div>
-                      <div className="max-h-60 overflow-y-auto">
+                    <div className="absolute w-full mt-1 z-10 shadow-lg">
+                      <div className="bg-black border border-slate-700 rounded-tl-lg rounded-tr-lg p-2 border-b-0">
+                       <Input 
+                         type="text" 
+                         placeholder="Filter users" 
+                         value={filters.assignees} 
+                         onChange={(e) => handleFilterChange('assignees', e.target.value)} 
+                         onClick={(e) => e.stopPropagation()} 
+                         className="bg-black border-slate-600 text-white w-full h-8 text-xs placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500/30" 
+                       />
+                      </div>
+                      <div className="max-h-60 overflow-y-auto bg-black border border-slate-700 rounded-b-lg border-t-0">
                         {filteredAssignees.length > 0 ? filteredAssignees.map(user => (
                           <div key={user.id} className="text-white text-xs flex items-center gap-3 p-2 border-b border-slate-800 last:border-b-0 hover:bg-slate-800 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleAssigneeToggle(user); }}>
                             <input type="checkbox" readOnly checked={selectedAssignees.some(assignee => assignee.id === user.id)} className="flex-shrink-0 h-4 w-4 bg-transparent border-slate-600 rounded" />

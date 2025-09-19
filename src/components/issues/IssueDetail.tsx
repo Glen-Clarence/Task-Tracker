@@ -249,7 +249,7 @@ const IssueDetail = (): React.JSX.Element => {
                             className="text-2xl font-bold text-white bg-black border-slate-600 h-auto"
                           />
                         ) : (
-                          <h1 className="text-2xl font-bold text-white">{issue.title}</h1>
+                          <h1 className="text-2xl text-white">{issue.title}</h1>
                         )}
                         {!isEditing && (
                           <Button type="button" size="sm" onClick={() => setIsEditing(true)}>
@@ -258,7 +258,7 @@ const IssueDetail = (): React.JSX.Element => {
                         )}
                       </div>
                       <p className="text-sm text-gray-400">
-                        Opened {formatDistanceToNow(new Date(issue.createdAt), { addSuffix: true })}
+                        {(issue.createdBy?.name ?? 'Unknown')} opened {formatDistanceToNow(new Date(issue.createdAt), { addSuffix: true })}
                       </p>
                     </div>
 

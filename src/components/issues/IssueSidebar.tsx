@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import { projectsApi } from "@/api/projects.api";
 import { tagsApi, Tag } from "@/api/tags.api";
-import { UserProfile } from "@/api/users.api";
+import { UserProfile, usersApi } from "@/api/users.api";
 import { issuesApi, IssueStatus, statusDisplayMap, IssuePriority, Issue } from '@/api/issues.api';
 
 // --- Type Definitions ---
@@ -44,7 +44,7 @@ const SidebarDropdown = ({ title, currentValue, isOpen, onToggle, children }: Si
             <div className="text-xs text-white flex justify-between hover:bg-gray-800 rounded-xl pt-1 pb-1 pl-2 pr-2 cursor-pointer" onClick={onToggle}>
                 {title} <span className="text-gray-500">⚙️</span>
             </div>
-            {!isOpen && <div className="text-gray-400 text-xs mt-2 pl-2 truncate">{currentValue}</div>}
+            {!isOpen && <div className="text-gray-400 text-xs mt-2 pl-2">{currentValue}</div>}
             {isOpen && children}
         </div>
     );
@@ -81,6 +81,12 @@ export const IssueSidebar = ({ issueId, onDelete, isDeleting, initialRepositoryN
         enabled: !!watchedValues.repositoryId,
     });
 
+    // Current logged-in user
+    const { data: currentUser } = useQuery({
+        queryKey: ["current-user"],
+        queryFn: usersApi.getProfile,
+    });
+
     const updateIssueMutation = useMutation({
         mutationFn: (updates: Partial<Issue> & { repositoryId?: string; assignedToIds?: string[]; tagIDs?: string[] }) =>
             issuesApi.update({ id: issueId, updates }),
@@ -88,12 +94,14 @@ export const IssueSidebar = ({ issueId, onDelete, isDeleting, initialRepositoryN
         onError: (error) => console.error("Failed to update issue:", error),
     });
 
-    const availableUsers = repositoryUsers ? [...repositoryUsers.members, repositoryUsers.lead] : [];
+    const availableUsers = repositoryUsers
+        ? ([...repositoryUsers.members, repositoryUsers.lead].filter(Boolean) as UserProfile[])
+        : [];
     
     // --- NEW & MODIFIED: Memoized filtering logic for each dropdown ---
     const filteredRepositories = useMemo(() =>
         repositories.filter(repo =>
-            repo.name.toLowerCase().includes(filters.repository.toLowerCase())
+            (repo?.name ?? '').toLowerCase().includes(filters.repository.toLowerCase())
         ), [repositories, filters.repository]);
     
     const priorities: IssuePriority[] = ["LOW", "MEDIUM", "HIGH"];
@@ -115,7 +123,7 @@ export const IssueSidebar = ({ issueId, onDelete, isDeleting, initialRepositoryN
 
     const filteredAssignees = useMemo(() =>
         availableUsers.filter(user =>
-            user.name.toLowerCase().includes(filters.assignees.toLowerCase())
+            (user?.name ?? '').toLowerCase().includes(filters.assignees.toLowerCase())
         ), [availableUsers, filters.assignees]);
 
 
@@ -129,6 +137,14 @@ export const IssueSidebar = ({ issueId, onDelete, isDeleting, initialRepositoryN
         const newAssignees = currentAssignees.some(a => a.id === user.id) ? currentAssignees.filter(a => a.id !== user.id) : [...currentAssignees, user];
         setValue("assignedTo", newAssignees);
         updateIssueMutation.mutate({ assignedToIds: newAssignees.map(a => a.id) });
+    };
+
+    const handleAssignSelf = () => {
+        if (!watchedValues.repositoryId || !currentUser) return;
+        const alreadyAssigned = (getValues("assignedTo") || []).some((a: UserProfile) => a.id === currentUser.id);
+        if (!alreadyAssigned) {
+            handleAssigneeToggle(currentUser);
+        }
     };
 
     const handleTagToggle = (tag: Tag) => {
@@ -235,7 +251,52 @@ export const IssueSidebar = ({ issueId, onDelete, isDeleting, initialRepositoryN
                     title="Assignees"
                     isOpen={openDropdown === 'assignees'}
                     onToggle={() => setOpenDropdown(openDropdown === 'assignees' ? null : 'assignees')}
-                    currentValue={(watchedValues.assignedTo || []).length > 0 ? (watchedValues.assignedTo || []).map((user: UserProfile) => user.name).join(", ") : "No one"}
+                    currentValue={
+                        (() => {
+                            const assigned = watchedValues.assignedTo || [];
+                            const names = assigned.map((u: UserProfile) => u.name).join(", ");
+                            const isSelfAssigned = currentUser ? assigned.some((a: UserProfile) => a.id === currentUser.id) : false;
+                            // Show the button whenever user is not assigned (or user not loaded yet),
+                            // and let the disabled state handle interactivity until repo/user are ready
+                            const canShowAssign = !isSelfAssigned;
+                            if (assigned.length > 0) {
+                                return (
+                                    <span>
+                                        {names}
+                                        {canShowAssign && (
+                                            <>
+                                                {' '}-{' '}
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); handleAssignSelf(); }}
+                                                    disabled={!watchedValues.repositoryId || !currentUser}
+                                                    aria-disabled={!watchedValues.repositoryId || !currentUser}
+                                                    className={`text-blue-400 hover:underline ${(!watchedValues.repositoryId || !currentUser) ? 'opacity-50 cursor-not-allowed hover:no-underline' : ''}`}
+                                                >
+                                                    Assign yourself
+                                                </button>
+                                            </>
+                                        )}
+                                    </span>
+                                );
+                            }
+                            // No one assigned case
+                            return (
+                                <span>
+                                    No one -{' '}
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); handleAssignSelf(); }}
+                                        disabled={!watchedValues.repositoryId || !currentUser}
+                                        aria-disabled={!watchedValues.repositoryId || !currentUser}
+                                        className={`text-blue-400 hover:underline ${(!watchedValues.repositoryId || !currentUser) ? 'opacity-50 cursor-not-allowed hover:no-underline' : ''}`}
+                                    >
+                                        Assign yourself
+                                    </button>
+                                </span>
+                            );
+                        })()
+                    }
                 >
                     <div className="absolute top-full -mt-px left-0 bg-black border border-slate-700 w-full z-30 rounded-xl shadow-lg">
                         <div className="p-2 border-b border-slate-700"><Input type="text" placeholder="Filter assignees" value={filters.assignees} onChange={(e) => handleFilterChange('assignees', e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-[#0d1117] border-slate-600 text-white w-full h-8 text-xs" /></div>

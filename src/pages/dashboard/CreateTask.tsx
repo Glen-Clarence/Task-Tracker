@@ -15,10 +15,9 @@ const CreateTask: React.FC = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => navigate("/dashboard")}
-                        className="text-gray-400 hover:bg-white/10 active:bg-white/20"
+                        className="text-gray-400 hover:bg-white active:bg-white/20"
                     >
                         <ArrowLeft size={16} className="mr-2" />
-                        Back to Dashboard
                     </Button>
                     <h1 className="text-xl font-medium text-white">Create New Task</h1>
                 </div>
@@ -26,7 +25,7 @@ const CreateTask: React.FC = () => {
 
             {/* Content */}
             <div className="px-6 pb-6">
-                <div className="max-w-4xl mx-auto">
+                <div className="max-w-4xl">
                     <CreateTaskForm />
                 </div>
             </div>
