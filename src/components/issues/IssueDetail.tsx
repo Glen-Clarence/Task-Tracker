@@ -248,8 +248,6 @@ const IssueDetail = (): React.JSX.Element => {
   if (isLoading) return <div className="text-center p-8 text-white">Loading issue...</div>;
   if (isError || !issue) return <div className="text-center p-8 text-white">Issue not found</div>;
 
-  // status info not used in this view
-
   return (
     <FormProvider {...methods}>
       <>
@@ -262,7 +260,7 @@ const IssueDetail = (): React.JSX.Element => {
 
             {/* Header */}
             <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
+              <div className="min-w-0  w-full">
                 <div className="flex items-center gap-3 flex-wrap">
                   {isEditing ? (
                     <Input
@@ -270,43 +268,71 @@ const IssueDetail = (): React.JSX.Element => {
                       className="text-3xl font-semibold text-white bg-black border-slate-600 h-auto"
                     />
                   ) : (
-                    <h1 className="text-3xl text-white truncate">{issue.title}</h1>
+                    <>
+                      <h1 className="text-3xl text-white truncate">{issue.title}</h1>
+                      <span className="text-white text-3xl">#{shortIssueId(issue.id)}</span>
+                    </>
                   )}
-                  <span className="text-white text-3xl">#{shortIssueId(issue.id)}</span>
                 </div>
-                <p className="mt-1 text-sm text-gray-400 truncate">
-                  <Badge className={`text-white ${getStatusInfo(issue.status).color}`}>{getStatusInfo(issue.status).label}</Badge>
-                </p>
+
+                {!isEditing && (
+                  <p className="mt-1 text-sm text-gray-400 truncate">
+                    <Badge className={`text-white ${getStatusInfo(issue.status).color}`}>
+                      {getStatusInfo(issue.status).label}
+                    </Badge>
+                  </p>
+                )}
               </div>
               <div className="flex flex-shrink-0 gap-2">
-                {!isEditing && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => setIsEditing(true)}
-                    className="bg-slate-800 text-white hover:bg-slate-700"
-                  >
-                    <Edit className="h-4 w-4 mr-2" /> Edit
-                  </Button>
+                {isEditing ? (
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={onCancelEdit}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      className="bg-green-600 text-white hover:bg-green-700"
+                      form="issue-edit-form"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? "Saving..." : "Save changes"}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setIsEditing(true)}
+                      className="bg-slate-800 text-white hover:bg-slate-700"
+                    >
+                      <Edit className="h-4 w-4 mr-2" /> Edit
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => navigate("/issues/new")}
+                      className="bg-green-600 text-white hover:bg-green-700"
+                    >
+                      <Plus className="h-4 w-4 mr-2" /> New issue
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleCopyLink}
+                      title="Copy link"
+                      className="text-gray-400 hover:bg-slate-900"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </>
                 )}
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => navigate("/issues/new")}
-                  className="bg-green-600 text-white hover:bg-green-700"
-                >
-                  <Plus className="h-4 w-4 mr-2" /> New issue
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  // variant="ghost"
-                  onClick={handleCopyLink}
-                  title="Copy link"
-                  className="text-gray-400 hover:bg-slate-900"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
               </div>
             </div>
 
@@ -314,7 +340,7 @@ const IssueDetail = (): React.JSX.Element => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-6">
-                <form onSubmit={handleSubmit(onSaveTitleAndDescription)}>
+                <form id="issue-edit-form" onSubmit={handleSubmit(onSaveTitleAndDescription)}>
                   <Card className="bg-grey border-0 backdrop-blur-sm p-6">
                     {/* Description block: avatar on the left, content panel on the right */}
                     <div className="flex items-start gap-3">
