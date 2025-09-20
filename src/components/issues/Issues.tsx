@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { useIssues } from "./useIssues";
 import useIssuesStore, { filterIssues, sortIssues } from "./useIssuesStore";
@@ -17,7 +17,9 @@ import {
   ArrowUpDown,
   XCircle,
   Play,
-  X
+  X,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Issue, IssueStatus, statusDisplayMap } from "@/api/issues.api";
@@ -25,6 +27,8 @@ import { Issue, IssueStatus, statusDisplayMap } from "@/api/issues.api";
 const Issues = () => {
   const navigate = useNavigate();
   const { issues, isLoading, updateIssue } = useIssues();
+
+  const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
 
   const {
     activeFilter,
@@ -36,7 +40,6 @@ const Issues = () => {
     selectedIssue
   } = useIssuesStore();
 
-  // Process issues with filters and sorting
   const processedIssues = useMemo(() => {
     const filtered = filterIssues(issues, activeFilter, searchQuery);
     return sortIssues(filtered, sortBy);
@@ -73,15 +76,10 @@ const Issues = () => {
 
   const handleStatusChange = async (issueId: string, newStatus: IssueStatus) => {
     try {
-      // Make the API call - this will trigger the optimistic update via the mutation
       await updateIssue(issueId, { status: newStatus });
-      
-      // The mutation's onMutate will handle the optimistic update
-      // and onSettled will invalidate the queries to refresh the data
     } catch (error) {
       console.error("Failed to update issue status:", error);
-      // The mutation's onError will handle rolling back the optimistic update
-      throw error; // Re-throw to show error in the UI
+      throw error;
     }
   };
 
@@ -181,115 +179,130 @@ const Issues = () => {
             </SelectItem>
           </SelectContent>
         </Select>
+
+        <div className="relative flex items-center rounded-lg bg-gray-800 p-1">
+            <div
+                className={`absolute h-6 w-6 rounded-md bg-gray-600 transition-transform duration-300 ease-in-out ${
+                    viewMode === 'card' ? 'translate-x-full' : 'translate-x-0'
+                }`}
+            />
+            {/* List Button */}
+            <button
+                onClick={() => setViewMode('list')}
+                className="relative z-10 flex h-6 w-6 items-center justify-center"
+                aria-label="List view"
+            >
+                <List className={`h-4 w-4 transition-colors ${viewMode === 'list' ? 'text-white' : 'text-gray-400'}`} />
+            </button>
+            {/* Grid Button */}
+            <button
+                onClick={() => setViewMode('card')}
+                className="relative z-10 flex h-6 w-6 items-center justify-center"
+                aria-label="Grid view"
+            >
+                <LayoutGrid className={`h-4 w-4 transition-colors ${viewMode === 'card' ? 'text-white' : 'text-gray-400'}`} />
+            </button>
+        </div>
       </div>
 
-      {/* Issues List */}
-      <div className="space-y-0 border border-gray-700 rounded-lg overflow-hidden">
+      {/* Issues List / Grid */}
+      <div>
         {processedIssues.length === 0 ? (
-          <div className="p-8 text-center text-gray-400">
+          <div className="p-8 text-center text-gray-400 border border-gray-700 rounded-lg">
             {searchQuery ? "No issues match your search." : "No issues found."}
           </div>
-        ) : (
-          processedIssues.map((issue) => (
-            <div
-              key={issue.id}
-              className={`p-4 border-b border-gray-700 last:border-b-0 hover:bg-gray-800/50 transition-colors cursor-pointer ${selectedIssue === issue.id ? "bg-blue-900/20" : ""
-                }`}
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/issues/${issue.id}`);
-              }}
-            >
-              <div className="flex items-start gap-3">
-                <div className="mt-1">
-                  {getStatusIcon(issue.status)}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-medium text-white hover:text-blue-400">
-                          {issue.title}
-                        </h3>
-                        <div className="flex items-center gap-2">
-                          {getPriorityBadge(issue.priority)}
+        ) : viewMode === 'list' ? (
+          // --- List View ---
+          <div className="space-y-0 border border-gray-700 rounded-lg overflow-hidden">
+            {processedIssues.map((issue) => (
+              <div
+                key={issue.id}
+                className={`p-4 border-b border-gray-700 last:border-b-0 hover:bg-gray-800/50 transition-colors cursor-pointer ${selectedIssue === issue.id ? "bg-blue-900/20" : ""}`}
+                onClick={(e) => { e.stopPropagation(); navigate(`/issues/${issue.id}`); }}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="mt-1">{getStatusIcon(issue.status)}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="font-medium text-white hover:text-blue-400">{issue.title}</h3>
+                          <div className="flex items-center gap-2">{getPriorityBadge(issue.priority)}</div>
                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-4 text-sm text-gray-400 mb-2">
-                        <span>#{issue.id.slice(0, 8)}</span>
-
-                        {issue.createdBy && (
+                        <div className="flex items-center gap-4 text-sm text-gray-400 mb-2">
+                          <span>#{issue.id.slice(0, 8)}</span>
+                          {issue.createdBy && (
+                            <div className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              <span>{issue.createdBy.name?.split(" ")[0] || "Unknown"}</span>
+                            </div>
+                          )}
                           <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            <span>{issue.createdBy.name?.split(" ")[0] || "Unknown"}</span>
+                            <Calendar className="h-3 w-3" />
+                            <span>opened {format(new Date(issue.createdAt), "MMM d, yyyy")}</span>
                           </div>
-                        )}
-
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          <span>opened {format(new Date(issue.createdAt), "MMM d, yyyy")}</span>
                         </div>
+                        {issue.description && <p className="text-sm text-gray-300 line-clamp-2">{issue.description}</p>}
                       </div>
-
-                      {issue.description && (
-                        <p className="text-sm text-gray-300 line-clamp-2">
-                          {issue.description}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Select
-                        value={issue.status}
-                        onValueChange={async (value: IssueStatus) => {
-                          try {
-                            await handleStatusChange(issue.id, value);
-                          } catch (error) {
-                            console.error('Failed to update status:', error);
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="w-36 h-8 text-white">
-                          <div className="flex items-center gap-2">
-                            {getStatusIcon(issue.status)}
-                            <span>{statusDisplayMap[issue.status]?.label || issue.status}</span>
-                          </div>
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-800 text-white">
-                          <SelectItem value="NOT_STARTED" className="cursor-pointer hover:bg-gray-700">
+                      <div className="flex items-center gap-2">
+                        <Select value={issue.status} onValueChange={async (value: IssueStatus) => { try { await handleStatusChange(issue.id, value); } catch (error) { console.error('Failed to update status:', error); } }}>
+                          <SelectTrigger className="w-36 h-8 text-white">
                             <div className="flex items-center gap-2">
-                              <CircleDot className="h-3 w-3 text-green-500" />
-                              Not Started
+                              {getStatusIcon(issue.status)}
+                              <span>{statusDisplayMap[issue.status]?.label || issue.status}</span>
                             </div>
-                          </SelectItem>
-                          <SelectItem value="IN_PROGRESS" className="cursor-pointer hover:bg-gray-700">
-                            <div className="flex items-center gap-2">
-                              <Play className="h-3 w-3 text-blue-500" />
-                              In Progress
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="COMPLETED" className="cursor-pointer hover:bg-gray-700">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle2 className="h-3 w-3 text-purple-500" />
-                              Completed
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="CANCELLED" className="cursor-pointer hover:bg-gray-700">
-                            <div className="flex items-center gap-2">
-                              <X className="h-3 w-3 text-red-500" />
-                              Cancelled
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-800 text-white">
+                            <SelectItem value="NOT_STARTED" className="cursor-pointer hover:bg-gray-700"><div className="flex items-center gap-2"><CircleDot className="h-3 w-3 text-green-500" />Not Started</div></SelectItem>
+                            <SelectItem value="IN_PROGRESS" className="cursor-pointer hover:bg-gray-700"><div className="flex items-center gap-2"><Play className="h-3 w-3 text-blue-500" />In Progress</div></SelectItem>
+                            <SelectItem value="COMPLETED" className="cursor-pointer hover:bg-gray-700"><div className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-purple-500" />Completed</div></SelectItem>
+                            <SelectItem value="CANCELLED" className="cursor-pointer hover:bg-gray-700"><div className="flex items-center gap-2"><X className="h-3 w-3 text-red-500" />Cancelled</div></SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+            ))}
+          </div>
+        ) : (
+           // --- Card View ---
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {processedIssues.map((issue) => (
+                    <div
+                        key={issue.id}
+                        className={`p-4 border border-gray-700 rounded-lg hover:bg-gray-800/50 transition-colors cursor-pointer flex flex-col gap-3 ${selectedIssue === issue.id ? "bg-blue-900/20 ring-2 ring-blue-500" : ""}`}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/issues/${issue.id}`); }}
+                    >
+                        <div className="flex items-start gap-3">
+                            <div className="mt-1">{getStatusIcon(issue.status)}</div>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="font-medium text-white hover:text-blue-400">{issue.title}</h3>
+                            </div>
+                        </div>
+                        
+                        {issue.description && <p className="text-sm text-gray-400 line-clamp-3 flex-grow">{issue.description}</p>}
+                        
+                        <div className="flex flex-col gap-2 pt-3 mt-auto border-t border-gray-700/60">
+                            <div className="flex items-center justify-between text-xs text-gray-400">
+                                {getPriorityBadge(issue.priority)}
+                                <span>#{issue.id.slice(0, 8)}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-gray-400">
+                                <div className="flex items-center gap-1">
+                                    <User className="h-3 w-3" />
+                                    <span>{issue.createdBy?.name?.split(" ")[0] || "Unknown"}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    <span>{format(new Date(issue.createdAt), "MMM d")}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
             </div>
-          ))
         )}
       </div>
 
