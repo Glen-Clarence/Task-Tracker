@@ -22,10 +22,12 @@ import {
   List,
 } from "lucide-react";
 import { format } from "date-fns";
-import { Issue, IssueStatus, statusDisplayMap } from "@/api/issues.api";
+import { Issue, IssueStatus, statusDisplayMap, issuesApi } from "@/api/issues.api";
 import { tagsApi, Tag } from "@/api/tags.api";
 import { projectsApi, Project } from "@/api/projects.api";
+import { UserProfile } from "@/api/users.api";
 import { useQuery } from "@tanstack/react-query";
+import { usersApi } from "@/api/users.api";
 
 const Issues = () => {
   const navigate = useNavigate();
@@ -42,32 +44,69 @@ const Issues = () => {
     setSortBy,
     selectedIssue,
     selectedIssues,
-    toggleIssueSelection,
-    selectAllIssues,
-    clearSelection,
-    isIssueSelected,
   } = useIssuesStore();
 
-  // Fetch labels and projects for dropdown display (non-functional placeholders for now)
+  // Fetch labels and projects for dropdown display
   const { data: tags = [] } = useQuery({ queryKey: ["tags"], queryFn: tagsApi.getAll });
   const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: projectsApi.getAll });
 
+  // Selected filters state (declare BEFORE using)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(undefined);
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string | undefined>(undefined);
+  const [selectedTagId, setSelectedTagId] = useState<string | undefined>(undefined);
+
+  // Current user (used to exclude from assignees and for intersection filter)
+  const { data: currentUser } = useQuery({ queryKey: ["current-user"], queryFn: usersApi.getProfile });
+
+  // When a repository is selected, fetch its issues; otherwise use global list from useIssues()
+  const { data: repoIssues = [] } = useQuery({
+    queryKey: ["issues", selectedProjectId],
+    queryFn: () => issuesApi.getAll(selectedProjectId),
+    enabled: !!selectedProjectId,
+  });
+  const baseIssues: Issue[] = selectedProjectId ? repoIssues : issues;
+
+  // Apply tag and assignee filters first (independent of status/search)
+  const extraFiltered = useMemo(() => {
+    let arr: Issue[] = baseIssues;
+    if (selectedTagId) {
+      arr = arr.filter((i: Issue) => (i.tagIDs || []).includes(selectedTagId));
+    }
+    if (selectedAssigneeId && currentUser?.id) {
+      // Intersection: both current user and selected assignee must be assigned
+      arr = arr.filter(
+        (i: Issue) => (i.assignedToIds || []).includes(currentUser.id as string) && (i.assignedToIds || []).includes(selectedAssigneeId)
+      );
+    }
+    return arr;
+  }, [baseIssues, selectedTagId, selectedAssigneeId, currentUser?.id]);
+
   const processedIssues = useMemo(() => {
-    const filtered = filterIssues(issues, activeFilter, searchQuery);
+    const filtered = filterIssues(extraFiltered, activeFilter, searchQuery);
     return sortIssues(filtered, sortBy);
-  }, [issues, activeFilter, searchQuery, sortBy]);
+  }, [extraFiltered, activeFilter, searchQuery, sortBy]);
 
   const headerCbRef = useRef<HTMLInputElement>(null);
+
+  // Fetch users for the selected project to populate Assignees dropdown
+  const { data: projectUsers } = useQuery({
+    queryKey: ["project-users", selectedProjectId],
+    queryFn: () => projectsApi.getUsers(selectedProjectId!),
+    enabled: !!selectedProjectId,
+  });
+  const availableUsers: UserProfile[] = projectUsers
+    ? ([...projectUsers.members, projectUsers.lead].filter(Boolean) as UserProfile[])
+    : [];
+  const availableUsersFiltered: UserProfile[] = useMemo(
+    () => availableUsers.filter((u) => u.id !== currentUser?.id),
+    [availableUsers, currentUser?.id]
+  );
   const allVisibleIds = useMemo(() => processedIssues.map((i) => i.id), [processedIssues]);
   const allSelected = allVisibleIds.length > 0 && allVisibleIds.every((id) => selectedIssues.includes(id));
   const someSelected = selectedIssues.some((id) => allVisibleIds.includes(id)) && !allSelected;
   useEffect(() => {
     if (headerCbRef.current) headerCbRef.current.indeterminate = someSelected;
   }, [someSelected]);
-  const onHeaderToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.stopPropagation();
-    if (allSelected) clearSelection(); else selectAllIssues(allVisibleIds);
-  };
 
   const getStatusIcon = (status: IssueStatus) => {
     switch (status) {
@@ -107,10 +146,11 @@ const Issues = () => {
     }
   };
 
-  const openCount = issues.filter(issue =>
+  // Counts reflect the selected repo + tag/assignee filters (but ignore status/search)
+  const openCount = extraFiltered.filter(issue =>
     issue.status === "NOT_STARTED" || issue.status === "IN_PROGRESS"
   ).length;
-  const closedCount = issues.filter(issue =>
+  const closedCount = extraFiltered.filter(issue =>
     issue.status === "COMPLETED" || issue.status === "CANCELLED"
   ).length;
 
@@ -206,7 +246,7 @@ const Issues = () => {
           // --- List View ---
           <div className="space-y-0 border border-gray-700 rounded-lg overflow-hidden">
             <div className="p-4 bg-gray-800/50 border-b border-gray-700 flex items-center gap-4 text-sm">
-              <input
+              {/* <input
                 ref={headerCbRef}
                 type="checkbox"
                 checked={allSelected}
@@ -214,7 +254,7 @@ const Issues = () => {
                 className="h-4 w-4 accent-blue-500 rounded border-gray-600"
                 aria-label="Select all issues"
                 onClick={(e) => e.stopPropagation()}
-              />
+              /> */}
               <div className="flex items-center gap-2">
                 <Button
                   variant={activeFilter === "open" ? "default" : "outline"}
@@ -234,23 +274,10 @@ const Issues = () => {
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   {closedCount} Closed
                 </Button>
-                <Button
-                  variant={activeFilter === "all" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setActiveFilter("all")}
-                  className="text-xs"
-                >
-                  All
-                </Button>
               </div>
               <div className="hidden md:flex items-center gap-2 ml-auto">
-                <Select>
-                  <SelectTrigger className="h-8 w-28 text-white bg-gray-800">
-                    <SelectValue placeholder="Author" />
-                  </SelectTrigger>
-                </Select>
-                <Select>
-                  <SelectTrigger className="h-8 w-28 text-white bg-gray-800">
+                <Select value={selectedTagId} onValueChange={setSelectedTagId}>
+                  <SelectTrigger className="h-8 text-white bg-gray-800">
                     <SelectValue placeholder="Labels" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-800 text-white max-h-72 overflow-y-auto">
@@ -259,8 +286,8 @@ const Issues = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select>
-                  <SelectTrigger className="h-8 w-32 text-white bg-gray-800">
+                <Select value={selectedProjectId} onValueChange={(val) => { setSelectedProjectId(val); setSelectedAssigneeId(undefined); }}>
+                  <SelectTrigger className="h-8 text-white bg-gray-800">
                     <SelectValue placeholder="Projects" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-800 text-white max-h-72 overflow-y-auto">
@@ -269,10 +296,19 @@ const Issues = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select>
-                  <SelectTrigger className="h-8 w-32 text-white bg-gray-800">
-                    <SelectValue placeholder="Assignees" />
+                <Select value={selectedAssigneeId} onValueChange={setSelectedAssigneeId}>
+                  <SelectTrigger className="text-white bg-gray-800" disabled={!selectedProjectId}>
+                    <SelectValue placeholder={selectedProjectId ? "Assignees" : "Select a project first"} />
                   </SelectTrigger>
+                  <SelectContent className="bg-gray-800 text-white max-h-72 overflow-y-auto">
+                    {availableUsersFiltered.length > 0 ? (
+                      availableUsersFiltered.map((u: UserProfile) => (
+                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-xs text-gray-400">{selectedProjectId ? "No users found" : "Select a project"}</div>
+                    )}
+                  </SelectContent>
                 </Select>
               </div>
             </div>
@@ -288,14 +324,14 @@ const Issues = () => {
                   onClick={(e) => { e.stopPropagation(); navigate(`/issues/${issue.id}`); }}
                 >
                   <div className="flex items-start gap-3">
-                    <input
+                    {/* <input
                       type="checkbox"
                       checked={isIssueSelected(issue.id)}
                       onChange={(e) => { e.stopPropagation(); toggleIssueSelection(issue.id); }}
                       onClick={(e) => e.stopPropagation()}
                       className="mt-1 h-4 w-4 accent-blue-500 rounded border-gray-600"
                       aria-label={`Select issue ${issue.id}`}
-                    />
+                    /> */}
                     <div className="mt-1">{getStatusIcon(issue.status)}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-4">
@@ -304,6 +340,21 @@ const Issues = () => {
                             <h3 className="font-medium text-white hover:text-blue-400">{issue.title}</h3>
                             <div className="flex items-center gap-2">{getPriorityBadge(issue.priority)}</div>
                           </div>
+                          {issue.tagIDs && issue.tagIDs.length > 0 && (
+                            <div className="mb-2 flex flex-wrap gap-1">
+                              {tags
+                                .filter((t) => issue.tagIDs?.includes(t.id))
+                                .map((t) => (
+                                  <Badge
+                                    key={t.id}
+                                    variant="outline"
+                                    className="text-[10px] px-1.5 py-0.5 bg-gray-800/40 border-gray-700 text-gray-200"
+                                  >
+                                    {t.name}
+                                  </Badge>
+                                ))}
+                            </div>
+                          )}
                           <div className="flex items-center gap-4 text-sm text-gray-400 mb-2">
                             <span>#{issue.id.slice(0, 8)}</span>
                             {issue.createdBy && (

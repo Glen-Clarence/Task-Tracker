@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, AlertCircle } from "lucide-react";
+import { ArrowLeft, AlertCircle, Info } from "lucide-react";
 import { $getRoot, EditorState } from "lexical";
 import { Issue, IssueStatus } from "@/api/issues.api";
 import { projectsApi } from "@/api/projects.api";
@@ -40,16 +40,33 @@ type SidebarDropdownProps = {
   isOpen: boolean;
   onToggle: () => void;
   children: React.ReactNode;
+  infoMessage?: string;
+  showInfo?: boolean;
 };
 
-const SidebarDropdown = ({ title, currentValue, isOpen, onToggle, children }: SidebarDropdownProps) => {
+const SidebarDropdown = ({ title, currentValue, isOpen, onToggle, children, infoMessage, showInfo }: SidebarDropdownProps) => {
   return (
     <div className="py-2 relative">
       <div
-        className="text-xs text-white flex justify-between hover:bg-gray-800 rounded-xl pt-1 pb-1 pl-2 cursor-pointer"
+        className="text-xs text-white flex items-center justify-between hover:bg-gray-800 rounded-xl pt-1 pb-1 pl-2 cursor-pointer"
         onClick={onToggle}
       >
-        {title} <span className="text-gray-500 pr-2">⚙️</span>
+        {title}
+        <div className="flex items-center gap-1 pr-2">
+          {/* settings icon (kept as text as in existing UI) */}
+          <span className="text-gray-500">⚙️</span>
+          {/* optional info icon with tooltip */}
+          {showInfo && infoMessage ? (
+            <div className="relative group" onClick={(e) => e.stopPropagation()}>
+              <Info size={14} className="text-gray-400 hover:text-gray-200" />
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover:block z-20">
+                <div className="whitespace-nowrap bg-black text-gray-200 text-[10px] leading-snug border border-slate-700 rounded px-2 py-1 shadow-lg">
+                  {infoMessage}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
       <div className="text-gray-400 text-xs mt-2 pl-2 truncate">
         {currentValue}
@@ -554,6 +571,8 @@ const NewIssue = () => {
                     title="Assignees"
                     isOpen={openDropdown === 'assignees'}
                     onToggle={() => toggleDropdown('assignees')}
+                    infoMessage="Select a repository"
+                    showInfo={!formData.repositoryId}
                     currentValue={
                         selectedAssignees.length > 0
                         ? selectedAssignees.map(u => u.name).join(", ")
