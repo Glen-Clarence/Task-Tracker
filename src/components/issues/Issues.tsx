@@ -46,19 +46,13 @@ const Issues = () => {
     selectedIssues,
   } = useIssuesStore();
 
-  // Fetch labels and projects for dropdown display
   const { data: tags = [] } = useQuery({ queryKey: ["tags"], queryFn: tagsApi.getAll });
   const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: projectsApi.getAll });
-
-  // Selected filters state (declare BEFORE using)
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(undefined);
   const [selectedAssigneeId, setSelectedAssigneeId] = useState<string | undefined>(undefined);
   const [selectedTagId, setSelectedTagId] = useState<string | undefined>(undefined);
-
-  // Current user (used to exclude from assignees and for intersection filter)
   const { data: currentUser } = useQuery({ queryKey: ["current-user"], queryFn: usersApi.getProfile });
 
-  // When a repository is selected, fetch its issues; otherwise use global list from useIssues()
   const { data: repoIssues = [] } = useQuery({
     queryKey: ["issues", selectedProjectId],
     queryFn: () => issuesApi.getAll(selectedProjectId),
@@ -66,14 +60,12 @@ const Issues = () => {
   });
   const baseIssues: Issue[] = selectedProjectId ? repoIssues : issues;
 
-  // Apply tag and assignee filters first (independent of status/search)
   const extraFiltered = useMemo(() => {
     let arr: Issue[] = baseIssues;
     if (selectedTagId) {
       arr = arr.filter((i: Issue) => (i.tagIDs || []).includes(selectedTagId));
     }
     if (selectedAssigneeId && currentUser?.id) {
-      // Intersection: both current user and selected assignee must be assigned
       arr = arr.filter(
         (i: Issue) => (i.assignedToIds || []).includes(currentUser.id as string) && (i.assignedToIds || []).includes(selectedAssigneeId)
       );
@@ -88,7 +80,6 @@ const Issues = () => {
 
   const headerCbRef = useRef<HTMLInputElement>(null);
 
-  // Fetch users for the selected project to populate Assignees dropdown
   const { data: projectUsers } = useQuery({
     queryKey: ["project-users", selectedProjectId],
     queryFn: () => projectsApi.getUsers(selectedProjectId!),
@@ -146,7 +137,6 @@ const Issues = () => {
     }
   };
 
-  // Counts reflect the selected repo + tag/assignee filters (but ignore status/search)
   const openCount = extraFiltered.filter(issue =>
     issue.status === "NOT_STARTED" || issue.status === "IN_PROGRESS"
   ).length;
@@ -246,15 +236,6 @@ const Issues = () => {
           // --- List View ---
           <div className="space-y-0 border border-gray-700 rounded-lg overflow-hidden">
             <div className="p-4 bg-gray-800/50 border-b border-gray-700 flex items-center gap-4 text-sm">
-              {/* <input
-                ref={headerCbRef}
-                type="checkbox"
-                checked={allSelected}
-                onChange={onHeaderToggle}
-                className="h-4 w-4 accent-blue-500 rounded border-gray-600"
-                aria-label="Select all issues"
-                onClick={(e) => e.stopPropagation()}
-              /> */}
               <div className="flex items-center gap-2">
                 <Button
                   variant={activeFilter === "open" ? "default" : "outline"}
@@ -324,14 +305,6 @@ const Issues = () => {
                   onClick={(e) => { e.stopPropagation(); navigate(`/issues/${issue.id}`); }}
                 >
                   <div className="flex items-start gap-3">
-                    {/* <input
-                      type="checkbox"
-                      checked={isIssueSelected(issue.id)}
-                      onChange={(e) => { e.stopPropagation(); toggleIssueSelection(issue.id); }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="mt-1 h-4 w-4 accent-blue-500 rounded border-gray-600"
-                      aria-label={`Select issue ${issue.id}`}
-                    /> */}
                     <div className="mt-1">{getStatusIcon(issue.status)}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-4">
