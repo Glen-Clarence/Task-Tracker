@@ -29,9 +29,16 @@ import { UserProfile } from "@/api/users.api";
 import { useQuery } from "@tanstack/react-query";
 import { usersApi } from "@/api/users.api";
 
+// Augment the Issue type from issues.api to include repositoryId for list items
+declare module "@/api/issues.api" {
+  interface Issue {
+    repositoryId?: string;
+  }
+}
+
 const Issues = () => {
   const navigate = useNavigate();
-  const { issues, isLoading, updateIssue } = useIssues();
+  const { issues, isLoading: isLoadingDefaultIssues, updateIssue } = useIssues();
 
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
 
@@ -48,30 +55,43 @@ const Issues = () => {
 
   const { data: tags = [] } = useQuery({ queryKey: ["tags"], queryFn: tagsApi.getAll });
   const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: projectsApi.getAll });
-  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(undefined);
-  const [selectedAssigneeId, setSelectedAssigneeId] = useState<string | undefined>(undefined);
-  const [selectedTagId, setSelectedTagId] = useState<string | undefined>(undefined);
+
+  const [filters, setFilters] = useState({
+    projectId: undefined as string | undefined,
+    assigneeId: undefined as string | undefined,
+    tagId: undefined as string | undefined,
+  });
+
   const { data: currentUser } = useQuery({ queryKey: ["current-user"], queryFn: usersApi.getProfile });
 
-  const { data: repoIssues = [] } = useQuery({
-    queryKey: ["issues", selectedProjectId],
-    queryFn: () => issuesApi.getAll(selectedProjectId),
-    enabled: !!selectedProjectId,
+  const { data: repoIssues = [], isLoading: isLoadingRepoIssues } = useQuery({
+    queryKey: ["issues", filters.projectId],
+    queryFn: () => issuesApi.getAll(filters.projectId),
+    enabled: !!filters.projectId,
   });
-  const baseIssues: Issue[] = selectedProjectId ? repoIssues : issues;
+
+  const baseIssues: Issue[] = filters.projectId ? repoIssues : issues;
+  const isLoading = isLoadingDefaultIssues || isLoadingRepoIssues;
 
   const extraFiltered = useMemo(() => {
-    let arr: Issue[] = baseIssues;
-    if (selectedTagId) {
-      arr = arr.filter((i: Issue) => (i.tagIDs || []).includes(selectedTagId));
+    let arr: Issue[] = [...baseIssues];
+
+    if (filters.projectId) {
+      arr = arr.filter((i: Issue) => i.repositoryId === filters.projectId);
     }
-    if (selectedAssigneeId && currentUser?.id) {
+
+    if (filters.tagId) {
+      arr = arr.filter((i: Issue) => (i.tagIDs || []).includes(filters.tagId!));
+    }
+
+    if (filters.assigneeId) {
       arr = arr.filter(
-        (i: Issue) => (i.assignedToIds || []).includes(currentUser.id as string) && (i.assignedToIds || []).includes(selectedAssigneeId)
+        (i: Issue) => (i.assignedToIds || []).includes(filters.assigneeId!)
       );
     }
+    
     return arr;
-  }, [baseIssues, selectedTagId, selectedAssigneeId, currentUser?.id]);
+  }, [baseIssues, filters.projectId, filters.tagId, filters.assigneeId]);
 
   const processedIssues = useMemo(() => {
     const filtered = filterIssues(extraFiltered, activeFilter, searchQuery);
@@ -81,9 +101,9 @@ const Issues = () => {
   const headerCbRef = useRef<HTMLInputElement>(null);
 
   const { data: projectUsers } = useQuery({
-    queryKey: ["project-users", selectedProjectId],
-    queryFn: () => projectsApi.getUsers(selectedProjectId!),
-    enabled: !!selectedProjectId,
+    queryKey: ["project-users", filters.projectId],
+    queryFn: () => projectsApi.getUsers(filters.projectId!),
+    enabled: !!filters.projectId,
   });
   const availableUsers: UserProfile[] = projectUsers
     ? ([...projectUsers.members, projectUsers.lead].filter(Boolean) as UserProfile[])
@@ -211,7 +231,6 @@ const Issues = () => {
             className={`absolute h-6 w-6 rounded-md bg-gray-600 transition-transform duration-300 ease-in-out ${viewMode === 'card' ? 'translate-x-full' : 'translate-x-0'
               }`}
           />
-          {/* List Button */}
           <button
             onClick={() => setViewMode('list')}
             className="relative z-10 flex h-6 w-6 items-center justify-center"
@@ -219,7 +238,6 @@ const Issues = () => {
           >
             <List className={`h-4 w-4 transition-colors ${viewMode === 'list' ? 'text-white' : 'text-gray-400'}`} />
           </button>
-          {/* Grid Button */}
           <button
             onClick={() => setViewMode('card')}
             className="relative z-10 flex h-6 w-6 items-center justify-center"
@@ -233,7 +251,6 @@ const Issues = () => {
       {/* Issues List / Grid */}
       <div>
         {viewMode === 'list' ? (
-          // --- List View ---
           <div className="space-y-0 border border-gray-700 rounded-lg overflow-hidden">
             <div className="p-4 bg-gray-800/50 border-b border-gray-700 flex items-center gap-4 text-sm">
               <div className="flex items-center gap-2">
@@ -257,37 +274,52 @@ const Issues = () => {
                 </Button>
               </div>
               <div className="hidden md:flex items-center gap-2 ml-auto">
-                <Select value={selectedTagId} onValueChange={setSelectedTagId}>
+                {/* ✅ FIX APPLIED HERE */}
+                <Select
+                  value={filters.tagId ?? 'all'}
+                  onValueChange={(val) => setFilters((f) => ({ ...f, tagId: val === 'all' ? undefined : val }))}
+                >
                   <SelectTrigger className="h-8 text-white bg-gray-800">
                     <SelectValue placeholder="Labels" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-800 text-white max-h-72 overflow-y-auto">
+                    <SelectItem value="all">All Labels</SelectItem>
                     {tags.map((t: Tag) => (
                       <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={selectedProjectId} onValueChange={(val) => { setSelectedProjectId(val); setSelectedAssigneeId(undefined); }}>
+                {/* ✅ FIX APPLIED HERE */}
+                <Select
+                  value={filters.projectId ?? 'all'}
+                  onValueChange={(val) => setFilters((f) => ({ ...f, projectId: val === 'all' ? undefined : val, assigneeId: undefined }))}
+                >
                   <SelectTrigger className="h-8 text-white bg-gray-800">
                     <SelectValue placeholder="Projects" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-800 text-white max-h-72 overflow-y-auto">
+                     <SelectItem value="all">All Projects</SelectItem>
                     {projects.map((p: Project) => (
                       <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={selectedAssigneeId} onValueChange={setSelectedAssigneeId}>
-                  <SelectTrigger className="text-white bg-gray-800" disabled={!selectedProjectId}>
-                    <SelectValue placeholder={selectedProjectId ? "Assignees" : "Select a project first"} />
+                {/* ✅ FIX APPLIED HERE */}
+                <Select
+                  value={filters.assigneeId ?? 'all'}
+                  onValueChange={(val) => setFilters((f) => ({ ...f, assigneeId: val === 'all' ? undefined : val }))}
+                >
+                  <SelectTrigger className="text-white bg-gray-800" disabled={!filters.projectId}>
+                    <SelectValue placeholder={filters.projectId ? "Assignees" : "Select a project first"} />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-800 text-white max-h-72 overflow-y-auto">
+                    <SelectItem value="all">All Assignees</SelectItem>
                     {availableUsersFiltered.length > 0 ? (
                       availableUsersFiltered.map((u: UserProfile) => (
                         <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                       ))
                     ) : (
-                      <div className="px-3 py-2 text-xs text-gray-400">{selectedProjectId ? "No users found" : "Select a project"}</div>
+                      !filters.projectId && <div className="px-3 py-2 text-xs text-gray-400">Select a project</div>
                     )}
                   </SelectContent>
                 </Select>
@@ -410,7 +442,7 @@ const Issues = () => {
 
       {processedIssues.length > 0 && (
         <div className="text-sm text-gray-400 text-center">
-          Showing {processedIssues.length} of {issues.length} issues
+          Showing {processedIssues.length} of {baseIssues.length} issues
         </div>
       )}
     </div>
