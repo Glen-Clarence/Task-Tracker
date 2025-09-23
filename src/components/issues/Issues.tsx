@@ -53,7 +53,12 @@ const Issues = () => {
     selectedIssues,
   } = useIssuesStore();
 
-  const { data: tags = [] } = useQuery({ queryKey: ["tags"], queryFn: tagsApi.getAll });
+  const { data: tags = [] } = useQuery<Tag[]>({
+    queryKey: ["issues-tags"],
+    queryFn: tagsApi.getAll,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
   const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: projectsApi.getAll });
 
   const [filters, setFilters] = useState({
