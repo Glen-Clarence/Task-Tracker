@@ -38,7 +38,7 @@ export const uploadApi = {
       const mockUrl = URL.createObjectURL(file);
 
       return {
-        url: mockUrl,
+        imageUrl: mockUrl,
         filename: file.name,
         size: file.size,
         type: file.type,
