@@ -3,8 +3,6 @@ import { EditorState } from "lexical";
 import Lexical from "../editors/Lexical";
 
 type DescriptionEditorProps = {
-  initialContent?: string;
-  updateContent?: (content: string) => void;
   title?: string;
   showDoodle?: boolean;
   setShowDoodle?: (open: boolean) => void;
@@ -13,11 +11,11 @@ type DescriptionEditorProps = {
 };
 
 export const DescriptionEditor = ({
-  initialContent = "",
-  updateContent = () => {},
   title = "",
   showDoodle: showDoodleProp,
   setShowDoodle: setShowDoodleProp,
+  initialConfig,
+  onChange,
 }: DescriptionEditorProps) => {
   const [internalShowDoodle, setInternalShowDoodle] = useState(false);
   const showDoodle = showDoodleProp ?? internalShowDoodle;
@@ -27,9 +25,9 @@ export const DescriptionEditor = ({
     <Lexical
       setShowDoodle={setShowDoodle}
       showDoodle={showDoodle}
-      initialContent={initialContent}
-      updateContent={updateContent}
       title={title}
+      initialConfig={initialConfig}
+      onChange={onChange}
     />
   );
 };

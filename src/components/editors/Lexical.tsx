@@ -66,9 +66,11 @@ const editorConfig = {
 function OnChangePlugin({
   onChange,
   initialContent,
+  skipInitialContent,
 }: {
   onChange: (editorState: EditorState) => void;
   initialContent?: string;
+  skipInitialContent?: boolean;
 }) {
   const [editor] = useLexicalComposerContext();
   useEffect(() => {
@@ -77,6 +79,7 @@ function OnChangePlugin({
     });
   }, [editor, onChange]);
   useEffect(() => {
+    if (skipInitialContent) return;
     if (!initialContent) return;
 
     try {
@@ -96,7 +99,7 @@ function OnChangePlugin({
         root.append(paragraph);
       });
     }
-  }, [initialContent, editor]);
+  }, [initialContent, skipInitialContent, editor]);
   return null;
 }
 
@@ -106,12 +109,16 @@ export default function Editor({
   showDoodle,
   updateContent,
   title,
+  initialConfig,
+  onChange: propOnChange,
 }: {
   initialContent?: string;
   setShowDoodle: (show: boolean) => void;
   showDoodle: boolean;
-  updateContent: (content: string) => void;
+  updateContent?: (content: string) => void;
   title?: string;
+  initialConfig?: unknown;
+  onChange?: (editorState: EditorState) => void;
 }) {
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const prevContentRef = useRef<string>("");
@@ -141,12 +148,14 @@ export default function Editor({
 
     timeoutRef.current = setTimeout(() => {
       prevContentRef.current = serialized;
-      updateContent(serialized);
+      if (updateContent) {
+        updateContent(serialized);
+      }
     }, 500);
   }
 
   return (
-    <LexicalComposer initialConfig={editorConfig}>
+    <LexicalComposer initialConfig={(initialConfig as any) ?? editorConfig}>
       <div className="editor-container relative  bg-transparent shadow-sm">
         <ToolbarPlugin
           setShowDoodle={setShowDoodle}
@@ -171,7 +180,7 @@ export default function Editor({
           {/* <ListMaxIndentLevelPlugin maxDepth={7} /> */}
           <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
           <ImageUploadPlugin />
-          <OnChangePlugin onChange={onChange} initialContent={initialContent} />
+          <OnChangePlugin onChange={propOnChange || onChange} initialContent={initialContent} skipInitialContent={!!initialConfig} />
         </div>
       </div>
     </LexicalComposer>

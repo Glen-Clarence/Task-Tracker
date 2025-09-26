@@ -23,7 +23,21 @@ export const statusDisplayMap = {
 
 export type IssuePriority = "LOW" | "MEDIUM" | "HIGH";
 
-// --- Type for Issue Lists (Simpler) ---
+export interface Comment {
+  id: string;
+  content: string;
+  user: {
+    id: string;
+    name?: string;
+    picture?: string;
+  };
+  createdAt: string;
+}
+
+type BackendComment = Omit<Comment, 'content'> & {
+  message: string;
+};
+
 export interface Issue {
   id: string;
   title: string;
@@ -33,20 +47,8 @@ export interface Issue {
   createdAt: string;
   updatedAt: string;
   createdBy?: Author;
-  assignedToIds?: string[]; 
+  assignedToIds?: string[];
   tagIDs?: string[];
-}
-
-// --- Type for a Single, Detailed Issue (Richer) ---
-interface Comment {
-  id: string;
-  content: string;
-  user: {
-    id: string;
-    name?: string;
-    picture?: string;
-  };
-  createdAt: string;
 }
 
 export interface IssueDetailData extends Omit<Issue, 'assignedToIds' | 'tagIDs'> {
@@ -59,7 +61,6 @@ export interface IssueDetailData extends Omit<Issue, 'assignedToIds' | 'tagIDs'>
   comments: Comment[];
 }
 
-// --- API Functions ---
 export const issuesApi = {
   getAll: async (repositoryId?: string): Promise<Issue[]> => {
     const params = repositoryId ? { repositoryId } : {};
@@ -89,4 +90,19 @@ export const issuesApi = {
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/issues/${id}`);
   },
+  getComments: async (issueId: string): Promise<Comment[]> => {
+    const { data } = await apiClient.get<BackendComment[]>(`/issues/${issueId}/comments`);
+    return data.map(comment => ({
+      ...comment,
+      content: comment.message,
+    }));
+  },
+  createComment: async ({ issueId, content }: { issueId: string; content: string }): Promise<Comment> => {
+    const { data } = await apiClient.post<BackendComment>(`/issues/${issueId}/comments`, { message: content });
+    return {
+      ...data,
+      content: data.message,
+    };
+  },
 };
+
