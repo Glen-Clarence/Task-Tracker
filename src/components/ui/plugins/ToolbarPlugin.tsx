@@ -791,6 +791,8 @@ export default function ToolbarPlugin({
               fileInput.onchange = async (event) => {
                 const target = event.target as HTMLInputElement;
                 const files = target.files;
+                console.log(files);
+                
                 if (files && files.length > 0) {
                   const file = files[0];
                   const isImage = file.type.startsWith("image/");
@@ -799,7 +801,8 @@ export default function ToolbarPlugin({
                   if (isImage || isVideo) {
                     try {
                       const uploadResponse = await uploadApi.uploadFile(file);
-
+                      console.log(uploadResponse);
+                      
                       // Insert the media into the editor
                       editor.update(() => {
                         const selection = $getSelection();
@@ -816,10 +819,11 @@ export default function ToolbarPlugin({
                           if (paragraphElement) {
                             range.selectNodeContents(paragraphElement);
                             range.collapse(false);
-
+                            console.log(isImage);
+                            
                             if (isImage) {
                               const imgElement = document.createElement("img");
-                              imgElement.src = uploadResponse.url;
+                              imgElement.src = uploadResponse.imageUrl;
                               imgElement.alt = file.name;
                               imgElement.style.maxWidth = "100%";
                               imgElement.style.height = "auto";
@@ -829,7 +833,7 @@ export default function ToolbarPlugin({
                             } else if (isVideo) {
                               const videoElement =
                                 document.createElement("video");
-                              videoElement.src = uploadResponse.url;
+                              videoElement.src = uploadResponse.imageUrl;
                               videoElement.controls = true;
                               videoElement.style.maxWidth = "100%";
                               videoElement.style.height = "auto";

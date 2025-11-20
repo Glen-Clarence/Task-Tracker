@@ -29,6 +29,7 @@ const ImageUploadPlugin = () => {
 
   const insertImage = useCallback(
     (url: string, altText: string = "") => {
+      console.log(url);
       editor.update(() => {
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
@@ -134,9 +135,9 @@ const ImageUploadPlugin = () => {
 
         // Insert the media into the editor
         if (isImage) {
-          insertImage(uploadResponse.url, file.name);
+          insertImage(uploadResponse.imageUrl, file.name);
         } else if (isVideo) {
-          insertVideo(uploadResponse.url, file.name);
+          insertVideo(uploadResponse.imageUrl, file.name);
         }
       } catch (error) {
         console.error("Upload failed:", error);

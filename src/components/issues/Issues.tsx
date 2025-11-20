@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { useIssues } from "./useIssues";
 import useIssuesStore, { filterIssues, sortIssues } from "./useIssuesStore";
@@ -22,11 +22,23 @@ import {
   List,
 } from "lucide-react";
 import { format } from "date-fns";
-import { Issue, IssueStatus, statusDisplayMap } from "@/api/issues.api";
+import { Issue, IssueStatus, statusDisplayMap, issuesApi } from "@/api/issues.api";
+import { tagsApi, Tag } from "@/api/tags.api";
+import { projectsApi, Project } from "@/api/projects.api";
+import { UserProfile } from "@/api/users.api";
+import { useQuery } from "@tanstack/react-query";
+import { usersApi } from "@/api/users.api";
+
+// Augment the Issue type from issues.api to include repositoryId for list items
+declare module "@/api/issues.api" {
+  interface Issue {
+    repositoryId?: string;
+  }
+}
 
 const Issues = () => {
   const navigate = useNavigate();
-  const { issues, isLoading, updateIssue } = useIssues();
+  const { issues, isLoading: isLoadingDefaultIssues, updateIssue } = useIssues();
 
   const [viewMode, setViewMode] = useState<'list' | 'card'>('list');
 
@@ -37,13 +49,80 @@ const Issues = () => {
     setActiveFilter,
     setSearchQuery,
     setSortBy,
-    selectedIssue
+    selectedIssue,
+    selectedIssues,
   } = useIssuesStore();
 
+  const { data: tags = [] } = useQuery<Tag[]>({
+    queryKey: ["issues-tags"],
+    queryFn: tagsApi.getAll,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+  const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: projectsApi.getAll });
+
+  const [filters, setFilters] = useState({
+    projectId: undefined as string | undefined,
+    assigneeId: undefined as string | undefined,
+    tagId: undefined as string | undefined,
+  });
+
+  const { data: currentUser } = useQuery({ queryKey: ["current-user"], queryFn: usersApi.getProfile });
+
+  const { data: repoIssues = [], isLoading: isLoadingRepoIssues } = useQuery({
+    queryKey: ["issues", filters.projectId],
+    queryFn: () => issuesApi.getAll(filters.projectId),
+    enabled: !!filters.projectId,
+  });
+
+  const baseIssues: Issue[] = filters.projectId ? repoIssues : issues;
+  const isLoading = isLoadingDefaultIssues || isLoadingRepoIssues;
+
+  const extraFiltered = useMemo(() => {
+    let arr: Issue[] = [...baseIssues];
+
+    if (filters.projectId) {
+      arr = arr.filter((i: Issue) => i.repositoryId === filters.projectId);
+    }
+
+    if (filters.tagId) {
+      arr = arr.filter((i: Issue) => (i.tagIDs || []).includes(filters.tagId!));
+    }
+
+    if (filters.assigneeId) {
+      arr = arr.filter(
+        (i: Issue) => (i.assignedToIds || []).includes(filters.assigneeId!)
+      );
+    }
+    
+    return arr;
+  }, [baseIssues, filters.projectId, filters.tagId, filters.assigneeId]);
+
   const processedIssues = useMemo(() => {
-    const filtered = filterIssues(issues, activeFilter, searchQuery);
+    const filtered = filterIssues(extraFiltered, activeFilter, searchQuery);
     return sortIssues(filtered, sortBy);
-  }, [issues, activeFilter, searchQuery, sortBy]);
+  }, [extraFiltered, activeFilter, searchQuery, sortBy]);
+
+  const headerCbRef = useRef<HTMLInputElement>(null);
+
+  const { data: projectUsers } = useQuery({
+    queryKey: ["project-users", filters.projectId],
+    queryFn: () => projectsApi.getUsers(filters.projectId!),
+    enabled: !!filters.projectId,
+  });
+  const availableUsers: UserProfile[] = projectUsers
+    ? ([...projectUsers.members, projectUsers.lead].filter(Boolean) as UserProfile[])
+    : [];
+  const availableUsersFiltered: UserProfile[] = useMemo(
+    () => availableUsers.filter((u) => u.id !== currentUser?.id),
+    [availableUsers, currentUser?.id]
+  );
+  const allVisibleIds = useMemo(() => processedIssues.map((i) => i.id), [processedIssues]);
+  const allSelected = allVisibleIds.length > 0 && allVisibleIds.every((id) => selectedIssues.includes(id));
+  const someSelected = selectedIssues.some((id) => allVisibleIds.includes(id)) && !allSelected;
+  useEffect(() => {
+    if (headerCbRef.current) headerCbRef.current.indeterminate = someSelected;
+  }, [someSelected]);
 
   const getStatusIcon = (status: IssueStatus) => {
     switch (status) {
@@ -83,10 +162,10 @@ const Issues = () => {
     }
   };
 
-  const openCount = issues.filter(issue =>
+  const openCount = extraFiltered.filter(issue =>
     issue.status === "NOT_STARTED" || issue.status === "IN_PROGRESS"
   ).length;
-  const closedCount = issues.filter(issue =>
+  const closedCount = extraFiltered.filter(issue =>
     issue.status === "COMPLETED" || issue.status === "CANCELLED"
   ).length;
 
@@ -120,34 +199,6 @@ const Issues = () => {
 
       {/* Filters and Search */}
       <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Button
-            variant={activeFilter === "open" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveFilter("open")}
-            className="text-xs"
-          >
-            <CircleDot className="h-3 w-3 mr-1" />
-            {openCount} Open
-          </Button>
-          <Button
-            variant={activeFilter === "closed" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveFilter("closed")}
-            className="text-xs"
-          >
-            <CheckCircle2 className="h-3 w-3 mr-1" />
-            {closedCount} Closed
-          </Button>
-          <Button
-            variant={activeFilter === "all" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveFilter("all")}
-            className="text-xs"
-          >
-            All
-          </Button>
-        </div>
 
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -181,134 +232,222 @@ const Issues = () => {
         </Select>
 
         <div className="relative flex items-center rounded-lg bg-gray-800 p-1">
-            <div
-                className={`absolute h-6 w-6 rounded-md bg-gray-600 transition-transform duration-300 ease-in-out ${
-                    viewMode === 'card' ? 'translate-x-full' : 'translate-x-0'
-                }`}
-            />
-            {/* List Button */}
-            <button
-                onClick={() => setViewMode('list')}
-                className="relative z-10 flex h-6 w-6 items-center justify-center"
-                aria-label="List view"
-            >
-                <List className={`h-4 w-4 transition-colors ${viewMode === 'list' ? 'text-white' : 'text-gray-400'}`} />
-            </button>
-            {/* Grid Button */}
-            <button
-                onClick={() => setViewMode('card')}
-                className="relative z-10 flex h-6 w-6 items-center justify-center"
-                aria-label="Grid view"
-            >
-                <LayoutGrid className={`h-4 w-4 transition-colors ${viewMode === 'card' ? 'text-white' : 'text-gray-400'}`} />
-            </button>
+          <div
+            className={`absolute h-6 w-6 rounded-md bg-gray-600 transition-transform duration-300 ease-in-out ${viewMode === 'card' ? 'translate-x-full' : 'translate-x-0'
+              }`}
+          />
+          <button
+            onClick={() => setViewMode('list')}
+            className="relative z-10 flex h-6 w-6 items-center justify-center"
+            aria-label="List view"
+          >
+            <List className={`h-4 w-4 transition-colors ${viewMode === 'list' ? 'text-white' : 'text-gray-400'}`} />
+          </button>
+          <button
+            onClick={() => setViewMode('card')}
+            className="relative z-10 flex h-6 w-6 items-center justify-center"
+            aria-label="Grid view"
+          >
+            <LayoutGrid className={`h-4 w-4 transition-colors ${viewMode === 'card' ? 'text-white' : 'text-gray-400'}`} />
+          </button>
         </div>
       </div>
 
       {/* Issues List / Grid */}
       <div>
-        {processedIssues.length === 0 ? (
-          <div className="p-8 text-center text-gray-400 border border-gray-700 rounded-lg">
-            {searchQuery ? "No issues match your search." : "No issues found."}
-          </div>
-        ) : viewMode === 'list' ? (
-          // --- List View ---
+        {viewMode === 'list' ? (
           <div className="space-y-0 border border-gray-700 rounded-lg overflow-hidden">
-            {processedIssues.map((issue) => (
-              <div
-                key={issue.id}
-                className={`p-4 border-b border-gray-700 last:border-b-0 hover:bg-gray-800/50 transition-colors cursor-pointer ${selectedIssue === issue.id ? "bg-blue-900/20" : ""}`}
-                onClick={(e) => { e.stopPropagation(); navigate(`/issues/${issue.id}`); }}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="mt-1">{getStatusIcon(issue.status)}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-medium text-white hover:text-blue-400">{issue.title}</h3>
-                          <div className="flex items-center gap-2">{getPriorityBadge(issue.priority)}</div>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-400 mb-2">
-                          <span>#{issue.id.slice(0, 8)}</span>
-                          {issue.createdBy && (
-                            <div className="flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              <span>{issue.createdBy.name?.split(" ")[0] || "Unknown"}</span>
+            <div className="p-4 bg-gray-800/50 border-b border-gray-700 flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={activeFilter === "open" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setActiveFilter("open")}
+                  className="text-xs"
+                >
+                  <CircleDot className="h-3 w-3 mr-1" />
+                  {openCount} Open
+                </Button>
+                <Button
+                  variant={activeFilter === "closed" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setActiveFilter("closed")}
+                  className="text-xs"
+                >
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  {closedCount} Closed
+                </Button>
+              </div>
+              <div className="hidden md:flex items-center gap-2 ml-auto">
+                {/* ✅ FIX APPLIED HERE */}
+                <Select
+                  value={filters.tagId ?? 'all'}
+                  onValueChange={(val) => setFilters((f) => ({ ...f, tagId: val === 'all' ? undefined : val }))}
+                >
+                  <SelectTrigger className="h-8 text-white bg-gray-800">
+                    <SelectValue placeholder="Labels" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 text-white max-h-72 overflow-y-auto">
+                    <SelectItem value="all">All Labels</SelectItem>
+                    {tags.map((t: Tag) => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {/* ✅ FIX APPLIED HERE */}
+                <Select
+                  value={filters.projectId ?? 'all'}
+                  onValueChange={(val) => setFilters((f) => ({ ...f, projectId: val === 'all' ? undefined : val, assigneeId: undefined }))}
+                >
+                  <SelectTrigger className="h-8 text-white bg-gray-800">
+                    <SelectValue placeholder="Projects" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 text-white max-h-72 overflow-y-auto">
+                     <SelectItem value="all">All Projects</SelectItem>
+                    {projects.map((p: Project) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {/* ✅ FIX APPLIED HERE */}
+                <Select
+                  value={filters.assigneeId ?? 'all'}
+                  onValueChange={(val) => setFilters((f) => ({ ...f, assigneeId: val === 'all' ? undefined : val }))}
+                >
+                  <SelectTrigger className="text-white bg-gray-800" disabled={!filters.projectId}>
+                    <SelectValue placeholder={filters.projectId ? "Assignees" : "Select a project first"} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 text-white max-h-72 overflow-y-auto">
+                    <SelectItem value="all">All Assignees</SelectItem>
+                    {availableUsersFiltered.length > 0 ? (
+                      availableUsersFiltered.map((u: UserProfile) => (
+                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                      ))
+                    ) : (
+                      !filters.projectId && <div className="px-3 py-2 text-xs text-gray-400">Select a project</div>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {processedIssues.length === 0 ? (
+              <div className="p-8 text-center text-gray-400">
+                {searchQuery ? "No issues match your search." : "No issues found."}
+              </div>
+            ) : (
+              processedIssues.map((issue) => (
+                <div
+                  key={issue.id}
+                  className={`p-4 border-b border-gray-700 last:border-b-0 hover:bg-gray-800/50 transition-colors cursor-pointer ${selectedIssue === issue.id ? "bg-blue-900/20" : ""}`}
+                  onClick={(e) => { e.stopPropagation(); navigate(`/issues/${issue.id}`); }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="mt-1">{getStatusIcon(issue.status)}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-medium text-white hover:text-blue-400">{issue.title}</h3>
+                            <div className="flex items-center gap-2">{getPriorityBadge(issue.priority)}</div>
+                          </div>
+                          {issue.tagIDs && issue.tagIDs.length > 0 && (
+                            <div className="mb-2 flex flex-wrap gap-1">
+                              {tags
+                                .filter((t) => issue.tagIDs?.includes(t.id))
+                                .map((t) => (
+                                  <Badge
+                                    key={t.id}
+                                    variant="outline"
+                                    className="text-[10px] px-1.5 py-0.5 bg-gray-800/40 border-gray-700 text-gray-200"
+                                  >
+                                    {t.name}
+                                  </Badge>
+                                ))}
                             </div>
                           )}
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>opened {format(new Date(issue.createdAt), "MMM d, yyyy")}</span>
+                          <div className="flex items-center gap-4 text-sm text-gray-400 mb-2">
+                            <span>#{issue.id.slice(0, 8)}</span>
+                            {issue.createdBy && (
+                              <div className="flex items-center gap-1">
+                                <User className="h-3 w-3" />
+                                <span>{issue.createdBy.name?.split(" ")[0] || "Unknown"}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              <span>opened {format(new Date(issue.createdAt), "MMM d, yyyy")}</span>
+                            </div>
                           </div>
                         </div>
-                        {issue.description && <p className="text-sm text-gray-300 line-clamp-2">{issue.description}</p>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Select value={issue.status} onValueChange={async (value: IssueStatus) => { try { await handleStatusChange(issue.id, value); } catch (error) { console.error('Failed to update status:', error); } }}>
-                          <SelectTrigger className="w-36 h-8 text-white">
-                            <div className="flex items-center gap-2">
-                              {getStatusIcon(issue.status)}
-                              <span>{statusDisplayMap[issue.status]?.label || issue.status}</span>
-                            </div>
-                          </SelectTrigger>
-                          <SelectContent className="bg-gray-800 text-white">
-                            <SelectItem value="NOT_STARTED" className="cursor-pointer hover:bg-gray-700"><div className="flex items-center gap-2"><CircleDot className="h-3 w-3 text-green-500" />Not Started</div></SelectItem>
-                            <SelectItem value="IN_PROGRESS" className="cursor-pointer hover:bg-gray-700"><div className="flex items-center gap-2"><Play className="h-3 w-3 text-blue-500" />In Progress</div></SelectItem>
-                            <SelectItem value="COMPLETED" className="cursor-pointer hover:bg-gray-700"><div className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-purple-500" />Completed</div></SelectItem>
-                            <SelectItem value="CANCELLED" className="cursor-pointer hover:bg-gray-700"><div className="flex items-center gap-2"><X className="h-3 w-3 text-red-500" />Cancelled</div></SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                          <Select value={issue.status} onValueChange={async (value: IssueStatus) => { try { await handleStatusChange(issue.id, value); } catch (error) { console.error('Failed to update status:', error); } }}>
+                            <SelectTrigger className="w-36 h-8 text-white">
+                              <div className="flex items-center gap-2">
+                                {getStatusIcon(issue.status)}
+                                <span>{statusDisplayMap[issue.status]?.label || issue.status}</span>
+                              </div>
+                            </SelectTrigger>
+                            <SelectContent className="bg-gray-800 text-white">
+                              <SelectItem value="NOT_STARTED" className="cursor-pointer hover:bg-gray-700"><div className="flex items-center gap-2"><CircleDot className="h-3 w-3 text-green-500" />Not Started</div></SelectItem>
+                              <SelectItem value="IN_PROGRESS" className="cursor-pointer hover:bg-gray-700"><div className="flex items-center gap-2"><Play className="h-3 w-3 text-blue-500" />In Progress</div></SelectItem>
+                              <SelectItem value="COMPLETED" className="cursor-pointer hover:bg-gray-700"><div className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-purple-500" />Completed</div></SelectItem>
+                              <SelectItem value="CANCELLED" className="cursor-pointer hover:bg-gray-700"><div className="flex items-center gap-2"><X className="h-3 w-3 text-red-500" />Cancelled</div></SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         ) : (
-           // --- Card View ---
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {processedIssues.map((issue) => (
-                    <div
-                        key={issue.id}
-                        className={`p-4 border border-gray-700 rounded-lg hover:bg-gray-800/50 transition-colors cursor-pointer flex flex-col gap-3 ${selectedIssue === issue.id ? "bg-blue-900/20 ring-2 ring-blue-500" : ""}`}
-                        onClick={(e) => { e.stopPropagation(); navigate(`/issues/${issue.id}`); }}
-                    >
-                        <div className="flex items-start gap-3">
-                            <div className="mt-1">{getStatusIcon(issue.status)}</div>
-                            <div className="flex-1 min-w-0">
-                                <h3 className="font-medium text-white hover:text-blue-400">{issue.title}</h3>
-                            </div>
-                        </div>
-                        
-                        {issue.description && <p className="text-sm text-gray-400 line-clamp-3 flex-grow">{issue.description}</p>}
-                        
-                        <div className="flex flex-col gap-2 pt-3 mt-auto border-t border-gray-700/60">
-                            <div className="flex items-center justify-between text-xs text-gray-400">
-                                {getPriorityBadge(issue.priority)}
-                                <span>#{issue.id.slice(0, 8)}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-xs text-gray-400">
-                                <div className="flex items-center gap-1">
-                                    <User className="h-3 w-3" />
-                                    <span>{issue.createdBy?.name?.split(" ")[0] || "Unknown"}</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    <span>{format(new Date(issue.createdAt), "MMM d")}</span>
-                                </div>
-                            </div>
-                        </div>
+          // --- Card View ---
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {processedIssues.length === 0 ? (
+              <div className="col-span-full p-8 text-center text-gray-400 border border-gray-700 rounded-lg">
+                {searchQuery ? "No issues match your search." : "No issues found."}
+              </div>
+            ) : (
+              processedIssues.map((issue) => (
+                <div
+                  key={issue.id}
+                  className={`p-4 border border-gray-700 rounded-lg hover:bg-gray-800/50 transition-colors cursor-pointer flex flex-col gap-3 ${selectedIssue === issue.id ? "bg-blue-900/20 ring-2 ring-blue-500" : ""}`}
+                  onClick={(e) => { e.stopPropagation(); navigate(`/issues/${issue.id}`); }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="mt-1">{getStatusIcon(issue.status)}</div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-white hover:text-blue-400">{issue.title}</h3>
                     </div>
-                ))}
-            </div>
+                  </div>
+                  <div className="flex flex-col gap-2 pt-3 mt-auto border-t border-gray-700/60">
+                    <div className="flex items-center justify-between text-xs text-gray-400">
+                      {getPriorityBadge(issue.priority)}
+                      <span>#{issue.id.slice(0, 8)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-gray-400">
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        <span>{issue.createdBy?.name?.split(" ")[0] || "Unknown"}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        <span>{format(new Date(issue.createdAt), "MMM d")}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         )}
       </div>
 
       {processedIssues.length > 0 && (
         <div className="text-sm text-gray-400 text-center">
-          Showing {processedIssues.length} of {issues.length} issues
+          Showing {processedIssues.length} of {baseIssues.length} issues
         </div>
       )}
     </div>

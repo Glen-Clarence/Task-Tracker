@@ -1,27 +1,32 @@
 import apiClient from "./_setup";
 
 export interface UploadResponse {
-  url: string;
+  imageUrl: string;
   filename: string;
-  size: number;
-  type: string;
+  size?: number;
+  type?: string;
 }
 
 export const uploadApi = {
   uploadFile: async (file: File): Promise<UploadResponse> => {
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("image", file);
 
     try {
       const { data } = await apiClient.post<UploadResponse>(
-        "/api/upload",
+        "/misc/upload-image",
         formData,
         {
           "Content-Type": "multipart/form-data",
         }
       );
 
-      return data;
+      const fileData = {
+        imageUrl: data.imageUrl,
+        filename: data.filename,
+        type: "image/"
+      }
+      return fileData;
     } catch (error) {
       // For testing purposes, if the backend is not available, return a mock response
       console.warn(
@@ -33,7 +38,7 @@ export const uploadApi = {
       const mockUrl = URL.createObjectURL(file);
 
       return {
-        url: mockUrl,
+        imageUrl: mockUrl,
         filename: file.name,
         size: file.size,
         type: file.type,
