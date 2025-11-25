@@ -14,7 +14,11 @@ import apiClient from "@/api/_setup";
 import { useQuery } from "@tanstack/react-query";
 import { tagsApi } from "@/api/tags.api";
 // import TextArea from "antd/es/input/TextArea";
-import { priorityOptions, statusOptions, timeEstimateOptions } from "@/utils/options";
+import {
+  priorityOptions,
+  statusOptions,
+  timeEstimateOptions,
+} from "@/utils/options";
 import {
   SelectContent,
   SelectValue,
@@ -124,22 +128,45 @@ const Home = () => {
     getQuickTasks();
   }, []);
 
+  // Filter tasks created today (between 12 AM to 11:59 PM)
   const tasksToday = tasks
     .filter((task) => {
-      const created = new Date(task.createdAt as string);
-      const now = new Date();
-      return (
-        (created.getFullYear() === now.getFullYear() &&
-          created.getMonth() === now.getMonth() &&
-          created.getDate() === now.getDate()) ||
-        task.status !== "COMPLETED"
-      );
+      if (!task.createdAt) return false;
+      const created = dayjs(task.createdAt);
+      const now = dayjs();
+      return created.isSame(now, "day");
     })
     .sort((a, b) => {
       if (a.status === "COMPLETED" && b.status !== "COMPLETED") return 1;
       if (a.status !== "COMPLETED" && b.status === "COMPLETED") return -1;
       return 0;
     });
+
+  // Calculate total time from today's tasks
+  const getTimeEstimateInHours = (timeEstimate?: string): number => {
+    if (!timeEstimate) return 0;
+    switch (timeEstimate) {
+      case "1":
+        return 0.5; // Less than an hour
+      case "2":
+        return 2; // Within 2 hours
+      case "3":
+        return 4; // Within 4 hours
+      case "4":
+        return 6; // Within 6 hours
+      case "5":
+        return 8; // Within 8 hours or more
+      default:
+        return 0;
+    }
+  };
+
+  const totalTimeToday = tasksToday.reduce((sum, task) => {
+    return sum + getTimeEstimateInHours(task.timeEstimate);
+  }, 0);
+
+  const goalHours = 8;
+  const progressPercentage = Math.min((totalTimeToday / goalHours) * 100, 100);
 
   console.log(tasks);
 
@@ -165,6 +192,23 @@ const Home = () => {
           }}
         >
           <div className="flex w-[80%] mx-auto flex-col items-center justify-start">
+            {/* Progress Bar */}
+            <div className="w-full mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-400">
+                  Today's Progress: {totalTimeToday.toFixed(1)}h / {goalHours}h
+                </span>
+                <span className="text-sm text-gray-400">
+                  {progressPercentage.toFixed(0)}%
+                </span>
+              </div>
+              <div className="w-full h-3 bg-[#363636] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 rounded-full"
+                  style={{ width: `${progressPercentage}%` }}
+                />
+              </div>
+            </div>
             <h3 className="text-4xl font-medium">{dayjs().format("h:mm")}</h3>
             <h1 className="text-2xl font-normal text-center">
               Hy, {profile?.name.split(" ")[0]}
@@ -406,12 +450,12 @@ const Home = () => {
                         className={clsx(
                           "text-[10px] px-2 py-1 rounded-full",
                           task.status === "COMPLETED" &&
-                          "bg-green-200 text-black",
+                            "bg-green-200 text-black",
                           task.status === "IN_PROGRESS" &&
-                          "bg-blue-200 text-black",
+                            "bg-blue-200 text-black",
                           task.status === "PENDING" && "bg-red-200 text-black",
                           task.status === "NOT_STARTED" &&
-                          "bg-yellow-200 text-black"
+                            "bg-yellow-200 text-black"
                         )}
                       >
                         {task.status}
@@ -425,10 +469,11 @@ const Home = () => {
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-sm">
-                        {task.timeEstimate ?
-                          timeEstimateOptions.find(opt => opt.value === task.timeEstimate)?.label || task.timeEstimate
-                          : 'Not set'
-                        }
+                        {task.timeEstimate
+                          ? timeEstimateOptions.find(
+                              (opt) => opt.value === task.timeEstimate
+                            )?.label || task.timeEstimate
+                          : "Not set"}
                       </span>
                     </td>
                     <td className="px-4 py-3">
