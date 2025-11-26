@@ -128,13 +128,13 @@ const Home = () => {
     getQuickTasks();
   }, []);
 
-  // Filter tasks created today (between 12 AM to 11:59 PM)
+  // Filter tasks for today based on task.date field (between 12 AM to 11:59 PM)
   const tasksToday = tasks
     .filter((task) => {
-      if (!task.createdAt) return false;
-      const created = dayjs(task.createdAt);
-      const now = dayjs();
-      return created.isSame(now, "day");
+      if (!task.date) return false;
+      const taskDate = dayjs(task.date);
+      const today = dayjs();
+      return taskDate.isSame(today, "day");
     })
     .sort((a, b) => {
       if (a.status === "COMPLETED" && b.status !== "COMPLETED") return 1;
